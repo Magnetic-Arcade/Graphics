@@ -210,6 +210,9 @@ namespace UnityEngine.Rendering.HighDefinition
             {
                 display.GetRenderPass(renderPassIndex, out var renderPass);
                 display.GetCullingParameters(camera, renderPass.cullingPassIndex, out var cullingParams);
+                display.zNear = camera.nearClipPlane;
+                display.zFar = camera.farClipPlane;
+                display.sRGB = false;
 
                 // Disable legacy stereo culling path
                 cullingParams.cullingOptions &= ~CullingOptions.Stereo;
