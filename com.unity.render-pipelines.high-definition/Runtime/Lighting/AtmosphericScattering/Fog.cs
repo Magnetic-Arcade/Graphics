@@ -90,8 +90,8 @@ namespace UnityEngine.Rendering.HighDefinition
         {
             var visualEnv = hdCamera.volumeStack.GetComponent<VisualEnvironment>();
             // For now PBR fog (coming from the PBR sky) is disabled until we improve it
-            return false;
-            //return (visualEnv.skyType.value == (int)SkyType.PhysicallyBased) && hdCamera.frameSettings.IsEnabled(FrameSettingsField.AtmosphericScattering);
+            // return false;
+            return (visualEnv.skyType.value == (int)SkyType.PhysicallyBased) && hdCamera.frameSettings.IsEnabled(FrameSettingsField.AtmosphericScattering);
         }
 
         static float ScaleHeightFromLayerDepth(float d)
