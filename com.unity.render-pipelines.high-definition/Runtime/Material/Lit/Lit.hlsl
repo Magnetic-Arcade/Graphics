@@ -17,7 +17,7 @@
 //-----------------------------------------------------------------------------
 
 // Choose between Lambert diffuse and Disney diffuse (enable only one of them)
-// #define USE_DIFFUSE_LAMBERT_BRDF
+#define USE_DIFFUSE_LAMBERT_BRDF
 
 #define LIT_USE_GGX_ENERGY_COMPENSATION
 
