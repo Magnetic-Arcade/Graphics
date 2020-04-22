@@ -20,6 +20,7 @@ namespace UnityEditor.Rendering.HighDefinition
         protected SerializedDataParameter m_MeanFreePath;
         protected SerializedDataParameter m_BaseHeight;
         protected SerializedDataParameter m_MaximumHeight;
+        protected SerializedDataParameter m_EnableAtmosphericScattering;
         protected SerializedDataParameter m_Anisotropy;
         protected SerializedDataParameter m_GlobalLightProbeDimmer;
         protected SerializedDataParameter m_EnableVolumetricFog;
@@ -35,6 +36,7 @@ namespace UnityEditor.Rendering.HighDefinition
         static GUIContent s_AnisotropyLabel = new GUIContent("Anisotropy", "Controls the angular distribution of scattered light. 0 is isotropic, 1 is forward scattering, and -1 is backward scattering.");
         static GUIContent s_GlobalLightProbeDimmerLabel = new GUIContent("Ambient Light Probe Dimmer", "Controls the intensity reduction of the global Light Probe that the sky generates.");
         static GUIContent s_EnableVolumetricFog = new GUIContent("Volumetric Fog", "When enabled, activates volumetric fog.");
+        static GUIContent s_EnableAtmosphericScattering = new GUIContent("Atmospheric Scattering", "When enabled, atmospheric scattering from the current PBR sky is applied.");
 
         public override bool hasAdvancedMode => true;
 
@@ -56,6 +58,7 @@ namespace UnityEditor.Rendering.HighDefinition
             m_MeanFreePath = Unpack(o.Find(x => x.meanFreePath));
             m_BaseHeight = Unpack(o.Find(x => x.baseHeight));
             m_MaximumHeight = Unpack(o.Find(x => x.maximumHeight));
+            m_EnableAtmosphericScattering = Unpack(o.Find(x => x.enableAtmosphericScattering));
             m_Anisotropy = Unpack(o.Find(x => x.anisotropy));
             m_GlobalLightProbeDimmer = Unpack(o.Find(x => x.globalLightProbeDimmer));
             m_EnableVolumetricFog = Unpack(o.Find(x => x.enableVolumetricFog));
@@ -97,6 +100,9 @@ namespace UnityEditor.Rendering.HighDefinition
                 }
             }
             EditorGUI.indentLevel--;
+
+
+            PropertyField(m_EnableAtmosphericScattering, s_EnableAtmosphericScattering);
 
             bool volumetricLightingAvailable = false;
             var hdpipe = HDRenderPipeline.currentAsset;

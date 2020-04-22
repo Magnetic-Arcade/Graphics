@@ -39,6 +39,8 @@ namespace UnityEngine.Rendering.HighDefinition
         public FloatParameter baseHeight = new FloatParameter(0.0f);
         /// <summary>Height fog maximum height.</summary>
         public FloatParameter maximumHeight = new FloatParameter(50.0f);
+        /// <summary>Enable PBR fog.</summary>
+        public BoolParameter enableAtmosphericScattering = new BoolParameter(false);
 
         // Common Fog Parameters (Exponential/Volumetric)
         /// <summary>Fog albedo.</summary>
@@ -126,9 +128,10 @@ namespace UnityEngine.Rendering.HighDefinition
         void UpdateShaderVariablesGlobalCBFogParameters(ref ShaderVariablesGlobal cb, HDCamera hdCamera)
         {
             bool enableVolumetrics = enableVolumetricFog.value && hdCamera.frameSettings.IsEnabled(FrameSettingsField.Volumetrics);
+            bool enablePBRFog = enableAtmosphericScattering.value && IsPBRFogEnabled(hdCamera);
 
             cb._FogEnabled = 1;
-            cb._PBRFogEnabled = IsPBRFogEnabled(hdCamera) ? 1 : 0;
+            cb._PBRFogEnabled = enablePBRFog ? 1 : 0;
             cb._EnableVolumetricFog = enableVolumetrics ? 1 : 0;
             cb._MaxFogDistance = maxFogDistance.value;
 
