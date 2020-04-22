@@ -1013,11 +1013,7 @@ namespace UnityEngine.Rendering
                     // Post-processing is disabled in scene view if either showImageEffects is disabled or we are
                     // rendering in wireframe mode.
                     if (sv.camera == camera &&
-                    #if UNITY_2020_2_OR_NEWER
                         (sv.sceneViewState.imageEffectsEnabled && sv.cameraMode.drawMode != UnityEditor.DrawCameraMode.Wireframe))
-                    #else
-                        (sv.sceneViewState.showImageEffects && sv.cameraMode.drawMode != UnityEditor.DrawCameraMode.Wireframe))
-                    #endif
                     {
                         enabled = true;
                         break;
@@ -1049,12 +1045,11 @@ namespace UnityEngine.Rendering
                 for (int i = 0; i < UnityEditor.SceneView.sceneViews.Count; i++) // Using a foreach on an ArrayList generates garbage ...
                 {
                     var sv = UnityEditor.SceneView.sceneViews[i] as UnityEditor.SceneView;
-                    if (sv.camera == camera &&
-                    #if UNITY_2020_2_OR_NEWER
-                        sv.sceneViewState.materialUpdateEnabled)
-                    #else
-                        sv.sceneViewState.showMaterialUpdate)
-                    #endif
+            #if UNITY_2020_2_OR_NEWER
+                    if (sv.camera == camera && sv.sceneViewState.alwaysRefreshEnabled)
+            #else
+                    if (sv.camera == camera && sv.sceneViewState.materialUpdateEnabled)                    
+            #endif
                     {
                         animateMaterials = true;
                         break;
@@ -1146,12 +1141,7 @@ namespace UnityEngine.Rendering
                 for (int i = 0; i < UnityEditor.SceneView.sceneViews.Count; i++)
                 {
                     var sv = UnityEditor.SceneView.sceneViews[i] as UnityEditor.SceneView;
-                    if (sv.camera == camera &&
-                    #if UNITY_2020_2_OR_NEWER
-                        sv.sceneViewState.fogEnabled)
-                    #else
-                        sv.sceneViewState.showFog)
-                    #endif
+                    if (sv.camera == camera && sv.sceneViewState.fogEnabled)
                     {
                         fogEnable = true;
                         break;
