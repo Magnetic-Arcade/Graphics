@@ -405,7 +405,8 @@ void LightLoop( float3 V, PositionInputs posInput, PreLightData preLightData, BS
     uint i = 0; // Declare once to avoid the D3D11 compiler warning.
     if (featureFlags & LIGHTFEATUREFLAGS_DIRECTIONAL)
     {
-        for (i = 0; i < _DirectionalLightCount; ++i)
+        uint directionalLightCount = min(1, _DirectionalLightCount);
+        for (i = 0; i < directionalLightCount; ++i)
         {
             if (IsMatchingLightLayer(_DirectionalLightDatas[i].lightLayers, builtinData.renderingLayers))
             {
