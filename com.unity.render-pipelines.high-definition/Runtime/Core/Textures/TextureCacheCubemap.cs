@@ -29,7 +29,7 @@ namespace UnityEngine.Rendering.HighDefinition
 
         override public bool IsCreated()
         {
-            return m_Cache != null && m_Cache.IsCreated();
+            return m_Cache.IsCreated();
         }
 
         override protected bool TransferToSlice(CommandBuffer cmd, int sliceIndex, Texture[] textureArray)
@@ -189,8 +189,9 @@ namespace UnityEngine.Rendering.HighDefinition
                 CoreUtils.Destroy(m_CubeBlitMaterial);
             }
 
-            if (m_Cache != null)
-                m_Cache.Release();
+            CoreUtils.Destroy(m_BlitCubemapFaceMaterial);
+
+            CoreUtils.Destroy(m_Cache);
         }
 
         private bool TransferToPanoCache(CommandBuffer cmd, int sliceIndex, Texture[] textureArray)

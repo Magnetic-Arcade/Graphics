@@ -94,6 +94,8 @@ namespace UnityEngine.Rendering.HighDefinition
                 // Create the required resolve materials
                 m_DepthResolveMaterial = CoreUtils.CreateEngineMaterial(resources.shaders.depthValuesPS);
                 m_ColorResolveMaterial = CoreUtils.CreateEngineMaterial(resources.shaders.colorResolvePS);
+
+                CoreUtils.SetKeyword(m_DepthResolveMaterial, "_HAS_MOTION_VECTORS", m_MotionVectorsSupport);
             }
 
             AllocateCoarseStencilBuffer(RTHandles.maxWidth, RTHandles.maxHeight, TextureXR.slices);
@@ -350,9 +352,7 @@ namespace UnityEngine.Rendering.HighDefinition
                         m_RTIDs3[2] = m_MotionVectorsRT.nameID;
                         CoreUtils.SetRenderTarget(cmd, m_RTIDs3, m_CameraDepthStencilBuffer);
 
-                        // Set the input textures
-                        Shader.SetGlobalTexture(HDShaderIDs._NormalTextureMS, m_NormalMSAART);
-                        Shader.SetGlobalTexture(HDShaderIDs._DepthTextureMS, m_DepthAsColorMSAART);
+                        // Set the motion vector input texture
                         Shader.SetGlobalTexture(HDShaderIDs._MotionVectorTextureMS, m_MotionVectorsMSAART);
                     }
                     else
@@ -361,13 +361,13 @@ namespace UnityEngine.Rendering.HighDefinition
                         m_RTIDs2[0] = m_CameraDepthValuesBuffer.nameID;
                         m_RTIDs2[1] = m_NormalRT.nameID;
                         CoreUtils.SetRenderTarget(cmd, m_RTIDs2, m_CameraDepthStencilBuffer);
-
-                        // Set the input textures
-                        Shader.SetGlobalTexture(HDShaderIDs._NormalTextureMS, m_NormalMSAART);
-                        Shader.SetGlobalTexture(HDShaderIDs._DepthTextureMS, m_DepthAsColorMSAART);
                     }
 
-                    // Resolve the depth and normal buffers
+                    // Set the depth and normal input textures
+                    Shader.SetGlobalTexture(HDShaderIDs._NormalTextureMS, m_NormalMSAART);
+                    Shader.SetGlobalTexture(HDShaderIDs._DepthTextureMS, m_DepthAsColorMSAART);
+
+                    // Resolve the buffers
                     cmd.DrawProcedural(Matrix4x4.identity, m_DepthResolveMaterial, SampleCountToPassIndex(m_MSAASamples), MeshTopology.Triangles, 3, 1);
                 }
             }
