@@ -7,6 +7,14 @@
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
+#define USE_INV_PI_TERM 1
+
+#if USE_INV_PI_TERM
+#define LIGHTING_TERM INV_PI
+#else
+#define LIGHTING_TERM 0
+#endif
+
 // If lightmap is not defined than we evaluate GI (ambient + probes) from SH
 // We might do it fully or partially in vertex to save shader ALU
 #if !defined(LIGHTMAP_ON)
@@ -344,7 +352,8 @@ half3 DirectBDRF(BRDFData brdfData, half3 normalWS, half3 lightDirectionWS, half
     float d = NoH * NoH * brdfData.roughness2MinusOne + 1.00001f;
 
     half LoH2 = LoH * LoH;
-    half specularTerm = brdfData.roughness2 / ((d * d) * max(0.1h, LoH2) * brdfData.normalizationTerm);
+    half specularTerm = brdfData.roughness2 / ((d * d) * max(0.1h, LoH2) * brdfData.normalizationTerm) * LIGHTING_TERM;
+    half diffuseTerm = LIGHTING_TERM;
 
     // On platforms where half actually means something, the denominator has a risk of overflow
     // clamp below was added specifically to "fix" that, but dx compiler (we convert bytecode to metal/gles)
@@ -354,7 +363,7 @@ half3 DirectBDRF(BRDFData brdfData, half3 normalWS, half3 lightDirectionWS, half
     specularTerm = clamp(specularTerm, 0.0, 100.0); // Prevent FP16 overflow on mobiles
 #endif
 
-    half3 color = specularTerm * brdfData.specular + brdfData.diffuse;
+    half3 color = specularTerm * brdfData.specular + diffuseTerm * brdfData.diffuse;
     return color;
 #else
     return brdfData.diffuse;
