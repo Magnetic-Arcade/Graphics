@@ -283,7 +283,7 @@ namespace UnityEditor.ShaderGraph.Drawing
 
         bool IsDirty()
         {
-            if (m_Deleted || graphObject.graph == null)
+            if (m_Deleted || !graphObject || graphObject.graph == null)
                 return false; // Not dirty; it's gone.
 
             var currentJson = MultiJson.Serialize(graphObject.graph);
