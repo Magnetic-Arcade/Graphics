@@ -64,6 +64,7 @@
     * [Layered Lit Shader](Layered-Lit-Shader)
     * [Lit Tessellation Shader](Lit-Tessellation-Shader)
     * [Lit Shader](Lit-Shader)
+    * [Terrain Lit Shader](Terrain-Lit-Shader.md)
     * [Unlit Shader](Unlit-Shader)
   * Shader Graph Master Nodes
     * [Customizing Materials Using Master Nodes](Customizing-HDRP-materials-with-Shader-Graph)
@@ -101,6 +102,8 @@
   * [Motion Vectors](Motion-Vectors)
   * [Anti-Aliasing](Anti-Aliasing)
   * [Alpha Output](Alpha-Output)
+  * [Arbitrary Output Variables](AOVs)
+  * [Multiframe Rendering and Accumulation](Accumulation)
 * Post-processing
   * [Post-processing in HDRP](Post-Processing-Main)
   * [Effect Execution Order](Post-Processing-Execution-Order)
@@ -141,9 +144,7 @@
 * Components
   * [Decal Projector](Decal-Projector)
 * Tools
-  * Look Dev
-    * [Look Dev Window](Look-Dev)
-    * [Environment Library](Look-Dev-Environment-Library)
+  * [Look Dev](Look-Dev)
   * [Compositor](Compositor-Main)
     * [User Guide](Compositor-User-Guide)
     * [User Options](Compositor-User-Options)
