@@ -48,7 +48,7 @@ namespace UnityEngine.Rendering.HighDefinition
 
         /// <summary>Sets the maximum distance HDRP renders shadows for all Light types.</summary>
         [Tooltip("Sets the maximum distance HDRP renders shadows for all Light types.")]
-        public NoInterpMinFloatParameter        maxShadowDistance = new NoInterpMinFloatParameter(500.0f, 0.0f);
+        public MinFloatParameter                maxShadowDistance = new MinFloatParameter(500.0f, 0.0f);
 
         /// <summary>Multiplier for thick transmission for directional lights.</summary>
         [Tooltip("Multiplier for thick transmission.")]
@@ -112,7 +112,7 @@ namespace UnityEngine.Rendering.HighDefinition
     public class CascadePartitionSplitParameter : VolumeParameter<float>
     {
         [NonSerialized]
-        NoInterpMinFloatParameter maxDistance;
+        MinFloatParameter maxDistance;
         internal bool normalized;
         [NonSerialized]
         CascadePartitionSplitParameter previous;
@@ -146,7 +146,7 @@ namespace UnityEngine.Rendering.HighDefinition
             : base(value, overrideState)
             => this.normalized = normalized;
 
-        internal void Init(NoInterpClampedIntParameter cascadeCounts, int minCascadeToAppears, NoInterpMinFloatParameter maxDistance, CascadePartitionSplitParameter previous, CascadePartitionSplitParameter next)
+        internal void Init(NoInterpClampedIntParameter cascadeCounts, int minCascadeToAppears, MinFloatParameter maxDistance, CascadePartitionSplitParameter previous, CascadePartitionSplitParameter next)
         {
             this.maxDistance = maxDistance;
             this.previous = previous;
@@ -168,7 +168,7 @@ namespace UnityEngine.Rendering.HighDefinition
         [NonSerialized]
         CascadePartitionSplitParameter max;
         [NonSerialized]
-        NoInterpMinFloatParameter maxDistance;
+        MinFloatParameter maxDistance;
         [NonSerialized]
         NoInterpClampedIntParameter cascadeCounts;
         int minCascadeToAppears;
@@ -194,7 +194,7 @@ namespace UnityEngine.Rendering.HighDefinition
             : base(value, overrideState)
             => this.normalized = normalized;
 
-        internal void Init(NoInterpClampedIntParameter cascadeCounts, int minCascadeToAppears, NoInterpMinFloatParameter maxDistance, CascadePartitionSplitParameter min, CascadePartitionSplitParameter max)
+        internal void Init(NoInterpClampedIntParameter cascadeCounts, int minCascadeToAppears, MinFloatParameter maxDistance, CascadePartitionSplitParameter min, CascadePartitionSplitParameter max)
         {
             this.maxDistance = maxDistance;
             this.min = min;
