@@ -25,7 +25,7 @@ namespace UnityEngine.Rendering.HighDefinition
     {
         CameraRelativeRendering = 1, // Rendering sets the origin of the world to the position of the primary (scene view) camera
         PreExposition = 0, //[SU] Disable pre expose (for perf)
-        PrecomputedAtmosphericAttenuation = 0, // Precomputes atmospheric attenuation for the directional light on the CPU, which makes it independent from the fragment's position, which is faster but wrong
+        PrecomputedAtmosphericAttenuation = 1, // Precomputes atmospheric attenuation for the directional light on the CPU, which makes it independent from the fragment's position, which is faster but wrong
 #if ENABLE_RAYTRACING
         Raytracing = 1,
 #else

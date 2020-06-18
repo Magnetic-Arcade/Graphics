@@ -12,6 +12,8 @@ namespace UnityEngine.Rendering.HighDefinition
         /// <summary>Enable fog.</summary>
         [Tooltip("Enables the fog.")]
         public BoolParameter enabled = new BoolParameter(false);
+        [Tooltip("Applys pbr atmospheric scattering.")]
+        public BoolParameter addPbrSkyScattering = new BoolParameter(false);
 
         /// <summary>Fog color mode.</summary>
         public FogColorParameter colorMode = new FogColorParameter(FogColorMode.SkyColor);
@@ -94,10 +96,12 @@ namespace UnityEngine.Rendering.HighDefinition
 
         internal static bool IsPBRFogEnabled(HDCamera hdCamera)
         {
+            var fog = hdCamera.volumeStack.GetComponent<Fog>();
             var visualEnv = hdCamera.volumeStack.GetComponent<VisualEnvironment>();
             // For now PBR fog (coming from the PBR sky) is disabled until we improve it
             // return false;
-            return (visualEnv.skyType.value == (int)SkyType.PhysicallyBased) && hdCamera.frameSettings.IsEnabled(FrameSettingsField.AtmosphericScattering);
+            return visualEnv.skyType.value == (int)SkyType.PhysicallyBased && fog.addPbrSkyScattering.value &&
+                   hdCamera.frameSettings.IsEnabled(FrameSettingsField.AtmosphericScattering);
         }
 
         static float ScaleHeightFromLayerDepth(float d)

@@ -9,6 +9,7 @@ namespace UnityEditor.Rendering.HighDefinition
     class FogEditor : VolumeComponentEditor
     {
         protected SerializedDataParameter m_Enabled;
+        protected SerializedDataParameter m_AddPbrSkyScattering;
         protected SerializedDataParameter m_MaxFogDistance;
         protected SerializedDataParameter m_ColorMode;
         protected SerializedDataParameter m_Color;
@@ -31,6 +32,7 @@ namespace UnityEditor.Rendering.HighDefinition
         protected SerializedDataParameter m_Filter;
 
         static GUIContent s_Enabled = new GUIContent("Enable", "Check this to enable fog in your scene.");
+        static GUIContent s_AddPbrSkyScattering = new GUIContent("PBR Sky Scattering", "Check this to enable pbr atmospheric scattering in your scene.");
         static GUIContent s_AlbedoLabel = new GUIContent("Albedo", "Specifies the color this fog scatters light to.");
         static GUIContent s_MeanFreePathLabel = new GUIContent("Fog Attenuation Distance", "Controls the density at the base level (per color channel). Distance at which fog reduces background light intensity by 63%. Units: m.");
         static GUIContent s_BaseHeightLabel = new GUIContent("Base Height", "Reference height (e.g. sea level). Sets the height of the boundary between the constant and exponential fog.");
@@ -47,6 +49,7 @@ namespace UnityEditor.Rendering.HighDefinition
             var o = new PropertyFetcher<Fog>(serializedObject);
 
             m_Enabled = Unpack(o.Find(x => x.enabled));
+            m_AddPbrSkyScattering = Unpack(o.Find(x => x.addPbrSkyScattering));
             m_MaxFogDistance = Unpack(o.Find(x => x.maxFogDistance));
 
             // Fog Color
