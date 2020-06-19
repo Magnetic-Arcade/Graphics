@@ -237,9 +237,6 @@ float4 EvaluateLight_Directional(LightLoopContext lightLoopContext, PositionInpu
     return color;
 }
 
-TEXTURE2D_X(_CloudShadow);
-SAMPLER(sampler_CloudShadow);
-
 DirectionalShadowType EvaluateShadow_Directional( LightLoopContext lightLoopContext, PositionInputs posInput,
                                         DirectionalLightData light, BuiltinData builtinData, float3 N)
 {
@@ -294,9 +291,6 @@ DirectionalShadowType EvaluateShadow_Directional( LightLoopContext lightLoopCont
     if (_DebugShadowMapMode == SHADOWMAPDEBUGMODE_SINGLE_SHADOW && light.shadowIndex == _DebugSingleShadowIndex)
         g_DebugShadowAttenuation = shadow;
 #endif
-
-    shadow *= 1.0f - LOAD_TEXTURE2D_X_LOD(_CloudShadow, posInput.positionSS, 0).r;
-    //shadow *= 1.0f - SAMPLE_TEXTURE2D_X_LOD(_CloudShadow, sampler_CloudShadow, posInput.positionNDC, 0).r;
 
     return shadow;
 #else // LIGHT_EVALUATION_NO_SHADOWS

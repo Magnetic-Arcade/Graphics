@@ -831,7 +831,8 @@ namespace UnityEngine.Rendering.HighDefinition
                     if (Fog.IsFogEnabled(data.hdCamera) || Fog.IsPBRFogEnabled(data.hdCamera))
                     {
                         var pixelCoordToViewDirWS = data.hdCamera.mainViewConstants.pixelCoordToViewDirWS;
-                        data.skyManager.RenderOpaqueAtmosphericScattering(context.cmd, data.hdCamera, destination, inputVolumetric, intermediateBuffer, depthBuffer, pixelCoordToViewDirWS, data.hdCamera.frameSettings.IsEnabled(FrameSettingsField.MSAA));
+                        var msaaEnabled = hdCamera.frameSettings.IsEnabled(FrameSettingsField.MSAA);
+                        data.skyManager.RenderOpaqueAtmosphericScattering(context.cmd, data.hdCamera, destination, m_SharedRTManager.GetDepthTexture(msaaEnabled), m_LightingBuffer, intermediateBuffer, depthBuffer, pixelCoordToViewDirWS, data.hdCamera.frameSettings.IsEnabled(FrameSettingsField.MSAA));
                     }
                 });
             }

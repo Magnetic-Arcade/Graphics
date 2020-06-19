@@ -389,7 +389,7 @@ void EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, out float3
             _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
             1.0f);
 
-        aerialLuminance.rgb *= _AtmosphereSkyLuminanceFactor * GetCurrentExposureMultiplier();
+        aerialLuminance.rgb *= _AtmosphereSkyLuminanceFactor.rgb * GetCurrentExposureMultiplier();
 
         // Apply any other fog OVER aerial perspective because AP is usually optically thiner.
         color.rgb = color.rgb + aerialLuminance.rgb * (1 - opacity);
@@ -487,7 +487,7 @@ void EvaluateAtmosphericScatteringPerVertex(float4 positionCS, float3 positionWS
             _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
             1.0f);
 
-        aerialLuminance.rgb *= _AtmosphereSkyLuminanceFactor * GetCurrentExposureMultiplier();
+        aerialLuminance.rgb *= _AtmosphereSkyLuminanceFactor.rgb * GetCurrentExposureMultiplier();
 
         // Apply any other fog OVER aerial perspective because AP is usually optically thiner.
         color.rgb = color.rgb + aerialLuminance.rgb * (1 - opacity);

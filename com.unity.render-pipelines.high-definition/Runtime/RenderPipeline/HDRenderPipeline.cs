@@ -2535,8 +2535,6 @@ namespace UnityEngine.Rendering.HighDefinition
                     }
                 }
 
-                RenderCloudShadow(hdCamera, cmd);
-
                 if (!hdCamera.frameSettings.SSRRunsAsync())
                 {
                     // Needs the depth pyramid and motion vectors, as well as the render of the previous frame.
@@ -3789,16 +3787,8 @@ namespace UnityEngine.Rendering.HighDefinition
             if (ShaderConfig.s_VertexFog == 0 && (Fog.IsFogEnabled(hdCamera) || Fog.IsPBRFogEnabled(hdCamera)))
             {
                 var pixelCoordToViewDirWS = hdCamera.mainViewConstants.pixelCoordToViewDirWS;
-                m_SkyManager.RenderOpaqueAtmosphericScattering(cmd, hdCamera, colorBuffer, m_LightingBuffer, intermediateBuffer, depthBuffer, pixelCoordToViewDirWS, hdCamera.frameSettings.IsEnabled(FrameSettingsField.MSAA));
+                m_SkyManager.RenderOpaqueAtmosphericScattering(cmd, hdCamera, colorBuffer, m_SharedRTManager.GetDepthTexture(msaaEnabled), m_LightingBuffer, intermediateBuffer, depthBuffer, pixelCoordToViewDirWS, hdCamera.frameSettings.IsEnabled(FrameSettingsField.MSAA));
             }
-        }
-
-        void RenderCloudShadow(HDCamera hdCamera, CommandBuffer cmd)
-        {
-            bool msaaEnabled = hdCamera.frameSettings.IsEnabled(FrameSettingsField.MSAA);
-            var depthBuffer = m_SharedRTManager.GetDepthStencilBuffer(msaaEnabled);
-
-            m_SkyManager.RenderCloudShadow(hdCamera, GetCurrentSunLight(), depthBuffer, m_CurrentDebugDisplaySettings, cmd);
         }
 
         /// <summary>

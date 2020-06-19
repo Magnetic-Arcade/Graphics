@@ -2,7 +2,7 @@ using System;
 
 namespace UnityEngine.Rendering.HighDefinition
 {
-    [CreateAssetMenu(fileName = "AtmosphereSkySettingsAsset", menuName = "Rendering/AtmosphereSky Settings")]
+    [CreateAssetMenu(fileName = "AtmosphereSkySettingsAsset", menuName = "Rendering/Atmosphere Sky Settings")]
     public class AtmosphereSkySettingsAsset : ScriptableObject
     {
         [Tooltip("Atmosphere components are rendered when this is not 0, otherwise ignored.")]

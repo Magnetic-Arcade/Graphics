@@ -1,6 +1,12 @@
 using Unity.Collections;
 using UnityEngine.Experimental.Rendering;
 
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEngine.SceneManagement;
+
+#endif
+
 namespace UnityEngine.Rendering.HighDefinition
 {
     public class AtmosphereSkyRenderer : SkyRenderer
@@ -36,22 +42,57 @@ namespace UnityEngine.Rendering.HighDefinition
         float m_CameraAerialPerspectiveVolumeDepthKm;
         float m_CameraAerialPerspectiveVolumeDepthSliceLengthKm;
 
-        Material                     m_AtmosphereSkyMaterial;
+        Material m_AtmosphereSkyMaterial;
         static MaterialPropertyBlock s_AtmosphereSkyMaterialProperties;
 
+        ProfilingSampler m_GlobalLutSampler;
+        ProfilingSampler m_ViewLutSampler;
+
         int m_LastParamHash;
-        int m_LastUpdateFrame;
 
         const float k_KmToM = 1000.0f;
         const float k_MToKm = (1.0f / k_KmToM);
 
+        public AtmosphereSkyRenderer()
+        {
+#if UNITY_EDITOR
+            AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
+            SceneManager.activeSceneChanged += SceneManagerOnactiveSceneChanged;
+#endif
+        }
+
+        ~AtmosphereSkyRenderer()
+        {
+#if UNITY_EDITOR
+            AssemblyReloadEvents.beforeAssemblyReload -= OnBeforeAssemblyReload;
+            SceneManager.activeSceneChanged -= SceneManagerOnactiveSceneChanged;
+#endif
+        }
+
+#if UNITY_EDITOR
+        void OnBeforeAssemblyReload()
+        {
+            m_LastParamHash = 0;
+        }
+
+        void SceneManagerOnactiveSceneChanged(Scene a, Scene b)
+        {
+            m_LastParamHash = 0;
+        }
+#endif
+
+        static AtmosphereSkySettingsAsset s_DefaultSettings;
+
         public override void Build()
         {
-            var hdrpAsset     = HDRenderPipeline.currentAsset;
+            var hdrpAsset = HDRenderPipeline.currentAsset;
             var hdrpResources = HDRenderPipeline.defaultAsset.renderPipelineResources;
 
             m_Settings = ScriptableObject.CreateInstance<AtmosphereSkySettingsAsset>();
-            m_LastParamHash = m_LastUpdateFrame = 0;
+            m_LastParamHash = 0;
+
+            m_GlobalLutSampler = new ProfilingSampler("Sky Atmosphere (Global LUTs)");
+            m_ViewLutSampler = new ProfilingSampler("Sky Atmosphere (View LUTs)");
 
             m_RenderTransmittanceLutCS = hdrpResources.shaders.atomosphereSkyRenderTransmittanceLutCS;
             m_RenderMultiScatteredLuminanceLutCS = hdrpResources.shaders.atomosphereSkyRenderMultiScatteredLuminanceLutCS;
@@ -77,7 +118,7 @@ namespace UnityEngine.Rendering.HighDefinition
             m_CameraAerialPerspectiveVolumeScreenResolution = ValidateLutResolution(m_Settings.aerialPerspectiveLUTWidth);
             m_CameraAerialPerspectiveVolumeDepthResolution = ValidateLutResolution(m_Settings.aerialPerspectiveLUTDepthResolution);
             m_CameraAerialPerspectiveVolumeDepthKm = m_Settings.aerialPerspectiveLUTDepth;
-            m_CameraAerialPerspectiveVolumeDepthKm = m_CameraAerialPerspectiveVolumeDepthKm < 1.0f ? 1.0f : m_CameraAerialPerspectiveVolumeDepthKm;	/* 1 kilometer minimum */
+            m_CameraAerialPerspectiveVolumeDepthKm = m_CameraAerialPerspectiveVolumeDepthKm < 1.0f ? 1.0f : m_CameraAerialPerspectiveVolumeDepthKm; /* 1 kilometer minimum */
             m_CameraAerialPerspectiveVolumeDepthSliceLengthKm = m_CameraAerialPerspectiveVolumeDepthKm / m_CameraAerialPerspectiveVolumeDepthResolution;
 
             var textureLutFormat = GetSkyLutTextureFormat(SystemInfo.graphicsDeviceType);
@@ -109,22 +150,22 @@ namespace UnityEngine.Rendering.HighDefinition
             Debug.Assert(m_DistantSkyLightLutTexture != null);
 
             m_AtmosphereViewLutTexture = RTHandles.Alloc(m_SkyViewLutWidth, m_SkyViewLutHeight,
-                                                            colorFormat: textureLutFormat,
-                                                            filterMode: FilterMode.Trilinear,
-                                                            wrapMode: TextureWrapMode.Clamp,
-                                                            enableRandomWrite: true,
-                                                            name: "AtmosphereSky_View");
+                                                         colorFormat: textureLutFormat,
+                                                         filterMode: FilterMode.Trilinear,
+                                                         wrapMode: TextureWrapMode.Clamp,
+                                                         enableRandomWrite: true,
+                                                         name: "AtmosphereSky_View");
             Debug.Assert(m_AtmosphereViewLutTexture != null);
 
             var volumeFormat = m_Settings.useLUT32 ? GraphicsFormat.R32G32B32A32_SFloat : GraphicsFormat.R16G16B16A16_SFloat;
             m_AtmosphereCameraAerialPerspectiveVolume = RTHandles.Alloc(m_CameraAerialPerspectiveVolumeScreenResolution, m_CameraAerialPerspectiveVolumeScreenResolution,
-                                                                           m_CameraAerialPerspectiveVolumeDepthResolution,
-                                                                           dimension: TextureDimension.Tex3D,
-                                                                           colorFormat: volumeFormat,
-                                                                           filterMode: FilterMode.Trilinear,
-                                                                           wrapMode: TextureWrapMode.Clamp,
-                                                                           enableRandomWrite: true,
-                                                                           name: "AtmosphereSky_AerialPerspective");
+                                                                        m_CameraAerialPerspectiveVolumeDepthResolution,
+                                                                        dimension: TextureDimension.Tex3D,
+                                                                        colorFormat: volumeFormat,
+                                                                        filterMode: FilterMode.Trilinear,
+                                                                        wrapMode: TextureWrapMode.Clamp,
+                                                                        enableRandomWrite: true,
+                                                                        name: "AtmosphereSky_AerialPerspective");
             Debug.Assert(m_AtmosphereCameraAerialPerspectiveVolume != null);
 
             SetupUniformSphereBuffer();
@@ -132,24 +173,26 @@ namespace UnityEngine.Rendering.HighDefinition
 
         public override void Cleanup()
         {
-            m_LastParamHash = m_LastUpdateFrame = 0;
+            m_LastParamHash = 0;
 
-            RTHandles.Release(m_TransmittanceLutTexture); m_TransmittanceLutTexture = null;
-            RTHandles.Release(m_MultiScatteredLuminanceLutTexture); m_MultiScatteredLuminanceLutTexture = null;
-            RTHandles.Release(m_DistantSkyLightLutTexture); m_DistantSkyLightLutTexture = null;
-            RTHandles.Release(m_AtmosphereViewLutTexture); m_AtmosphereViewLutTexture = null;
-            RTHandles.Release(m_AtmosphereCameraAerialPerspectiveVolume); m_AtmosphereCameraAerialPerspectiveVolume = null;
-            CoreUtils.SafeRelease(m_UniformSphereSamplesBuffer); m_UniformSphereSamplesBuffer = null;
-            CoreUtils.Destroy(m_AtmosphereSkyMaterial); m_AtmosphereSkyMaterial = null;
+            RTHandles.Release(m_TransmittanceLutTexture);
+            m_TransmittanceLutTexture = null;
+            RTHandles.Release(m_MultiScatteredLuminanceLutTexture);
+            m_MultiScatteredLuminanceLutTexture = null;
+            RTHandles.Release(m_DistantSkyLightLutTexture);
+            m_DistantSkyLightLutTexture = null;
+            RTHandles.Release(m_AtmosphereViewLutTexture);
+            m_AtmosphereViewLutTexture = null;
+            RTHandles.Release(m_AtmosphereCameraAerialPerspectiveVolume);
+            m_AtmosphereCameraAerialPerspectiveVolume = null;
+            CoreUtils.SafeRelease(m_UniformSphereSamplesBuffer);
+            m_UniformSphereSamplesBuffer = null;
+            CoreUtils.Destroy(m_AtmosphereSkyMaterial);
+            m_AtmosphereSkyMaterial = null;
         }
 
         protected override bool Update(BuiltinSkyParameters builtinParams)
         {
-            if (builtinParams.frameIndex <= m_LastUpdateFrame)
-                return false;
-
-            m_LastUpdateFrame = builtinParams.frameIndex;
-
             var atmosphereSky = builtinParams.skySettings as AtmosphereSky;
 
             // CoreUtils.SetKeyword(builtinParams.commandBuffer, "_SUPPORT_ATMOSPHERE", m_Settings.supportAtmosphere);
@@ -164,7 +207,10 @@ namespace UnityEngine.Rendering.HighDefinition
                 UpdateGlobalConstantBuffer(builtinParams.commandBuffer, builtinParams);
                 UpdateInternalConstantBuffer(builtinParams.commandBuffer, builtinParams);
 
-                RenderAtmosphereLookUpTables(builtinParams);
+                using (new ProfilingScope(builtinParams.commandBuffer, m_GlobalLutSampler))
+                {
+                    RenderAtmosphereLookUpTables(builtinParams);
+                }
 
                 // If the sky is realtime, an upcoming update will update the sky lighting. Otherwise we need to force an update.
                 return builtinParams.skySettings.updateMode != EnvironmentUpdateMode.Realtime;
@@ -184,7 +230,10 @@ namespace UnityEngine.Rendering.HighDefinition
 
         public override void PreRenderSky(BuiltinSkyParameters builtinParams, bool renderForCubemap, bool renderSunDisk)
         {
-            RenderAtmosphereViewDependentLookUpTables(builtinParams, false, renderSunDisk);
+            using (new ProfilingScope(builtinParams.commandBuffer, m_ViewLutSampler))
+            {
+                RenderAtmosphereViewDependentLookUpTables(builtinParams, false, renderSunDisk);
+            }
 
             builtinParams.commandBuffer.SetGlobalTexture(s_SkyViewLutTexture, m_AtmosphereViewLutTexture);
             builtinParams.commandBuffer.SetGlobalTexture(s_CameraAerialPerspectiveVolume, m_AtmosphereCameraAerialPerspectiveVolume);
@@ -202,8 +251,8 @@ namespace UnityEngine.Rendering.HighDefinition
 
             float iMul = GetSkyIntensity(builtinParams.skySettings, builtinParams.debugSettings);
             s_AtmosphereSkyMaterialProperties.SetMatrix(HDShaderIDs._PixelCoordToViewDirWS, builtinParams.pixelCoordToViewDirMatrix);
-            s_AtmosphereSkyMaterialProperties.SetVector(HDShaderIDs._WorldSpaceCameraPos1,  builtinParams.worldSpaceCameraPos);
-            s_AtmosphereSkyMaterialProperties.SetMatrix(HDShaderIDs._ViewMatrix1,           builtinParams.viewMatrix);
+            s_AtmosphereSkyMaterialProperties.SetVector(HDShaderIDs._WorldSpaceCameraPos1, builtinParams.worldSpaceCameraPos);
+            s_AtmosphereSkyMaterialProperties.SetMatrix(HDShaderIDs._ViewMatrix1, builtinParams.viewMatrix);
             s_AtmosphereSkyMaterialProperties.SetInt(HDShaderIDs._RenderSunDisk, renderSunDisk ? 1 : 0);
             s_AtmosphereSkyMaterialProperties.SetFloat("_Intensity", iMul);
 
@@ -219,7 +268,7 @@ namespace UnityEngine.Rendering.HighDefinition
         void SetupUniformSphereBuffer()
         {
             const int groupSize = 8;
-            const float groupSizeInv = 1.0f / (float)(groupSize);
+            const float groupSizeInv = 1.0f / (float) (groupSize);
 
             m_UniformSphereSamplesBuffer = new ComputeBuffer(groupSize * groupSize, sizeof(float) * 4, ComputeBufferType.Default);
             var dest = new NativeArray<Vector4>(groupSize * groupSize, Allocator.Temp);
@@ -235,7 +284,7 @@ namespace UnityEngine.Rendering.HighDefinition
                         float u1 = (j + Random.value) * groupSizeInv;
 
                         float a = 1.0f - 2.0f * u0;
-                        float b = Mathf.Sqrt(1.0f - a*a);
+                        float b = Mathf.Sqrt(1.0f - a * a);
                         float phi = 2 * Mathf.PI * u1;
 
                         int idx = j * groupSize + i;
@@ -269,13 +318,18 @@ namespace UnityEngine.Rendering.HighDefinition
 
         //RenderTransmittanceLut
         static readonly int s_TransmittanceLutUav = Shader.PropertyToID("TransmittanceLutUAV");
+
         //RenderMultiScatteredLuminanceLut
         static readonly int s_MultiScatteredLuminanceLutUav = Shader.PropertyToID("MultiScatteredLuminanceLutUAV");
+
         //RenderDistanceSkyLut
         static readonly int s_DistantSkyLightLutUav = Shader.PropertyToID("DistantSkyLightLutUAV");
+
         static readonly int s_DistantSkyLightSampleAltitude = Shader.PropertyToID("DistantSkyLightSampleAltitude");
+
         //RenderSkyViewLut
         static readonly int s_SkyViewLutUav = Shader.PropertyToID("SkyViewLutUAV");
+
         //RenderCameraAerialPerspective
         static readonly int s_AerialPerspectiveStartDepthKm = Shader.PropertyToID("AerialPerspectiveStartDepthKm");
         static readonly int s_CameraAerialPerspectiveVolumeUav = Shader.PropertyToID("CameraAerialPerspectiveVolumeUAV");
@@ -355,7 +409,7 @@ namespace UnityEngine.Rendering.HighDefinition
             var atmosphereSky = builtinParams.skySettings as AtmosphereSky;
             var camera = builtinParams.hdCamera.camera;
             var useMultiScattering = atmosphereSky.multiScatteringFactor.value > 0f;
-            var secondAtmosphereLightEnabled = false;//lights.Count > 1;
+            var secondAtmosphereLightEnabled = false; //lights.Count > 1;
 
             float aerialPerspectiveStartDepthInM = GetValidAerialPerspectiveStartDepthInM(camera);
             // bool bLightDiskEnabled = hdCamera.camera.cameraType != CameraType.Reflection;
@@ -475,12 +529,12 @@ namespace UnityEngine.Rendering.HighDefinition
             m_ConstantBuffer._SkyPlanetCenterAndViewHeight.w = (skyWorldOrigin - planetCenterWorld).magnitude;
 
             m_ConstantBuffer._AtmosphereSkyLuminanceFactor = atmosphereSky.skyLuminanceFactor.value;
-            m_ConstantBuffer._AtmosphereHeightFogContribution =  atmosphereSky.heightFogContribution.value;
-            m_ConstantBuffer._AtmosphereBottomRadiusKm =  parameters.bottomRadiusKm;
-            m_ConstantBuffer._AtmosphereTopRadiusKm =  parameters.topRadiusKm;
+            m_ConstantBuffer._AtmosphereHeightFogContribution = atmosphereSky.heightFogContribution.value;
+            m_ConstantBuffer._AtmosphereBottomRadiusKm = parameters.bottomRadiusKm;
+            m_ConstantBuffer._AtmosphereTopRadiusKm = parameters.topRadiusKm;
 
             float aerialPerspectiveStartDepthInM = GetValidAerialPerspectiveStartDepthInM(camera);
-            m_ConstantBuffer._AtmosphereAerialPerspectiveStartDepthKm =  aerialPerspectiveStartDepthInM * k_MToKm;
+            m_ConstantBuffer._AtmosphereAerialPerspectiveStartDepthKm = aerialPerspectiveStartDepthInM * k_MToKm;
             m_ConstantBuffer._AtmosphereCameraAerialPerspectiveVolumeDepthResolution = m_CameraAerialPerspectiveVolumeDepthResolution;
             m_ConstantBuffer._AtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv = 1.0f / m_CameraAerialPerspectiveVolumeDepthResolution;
             m_ConstantBuffer._AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm = m_CameraAerialPerspectiveVolumeDepthSliceLengthKm;
@@ -518,7 +572,7 @@ namespace UnityEngine.Rendering.HighDefinition
 
             m_ComputeConstantBuffer._SampleCountMin = m_Settings.sampleCountMin;
             m_ComputeConstantBuffer._SampleCountMax = m_Settings.sampleCountMax;
-	        float distanceToSampleCountMaxInv = m_Settings.distanceToSampleCountMax;
+            float distanceToSampleCountMaxInv = m_Settings.distanceToSampleCountMax;
 
             m_ComputeConstantBuffer._FastSkySampleCountMin = m_Settings.fastSkyLUTSampleCountMin;
             m_ComputeConstantBuffer._FastSkySampleCountMax = m_Settings.fastSkyLUTSampleCountMax;
@@ -612,7 +666,7 @@ namespace UnityEngine.Rendering.HighDefinition
         static Vector3 GetLightDiskLuminance(HDAdditionalLightData lightData, Vector3 lightIlluminance)
         {
             float sunSolidAngle = 2.0f * Mathf.PI * (1.0f - Mathf.Cos(GetSunLightHalfApexAngleRadian(lightData))); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle
-            return lightIlluminance / sunSolidAngle;                                                      // approximation
+            return lightIlluminance / sunSolidAngle;                                                               // approximation
         }
 
         static float GetSunLightHalfApexAngleRadian(HDAdditionalLightData lightData)
@@ -628,7 +682,7 @@ namespace UnityEngine.Rendering.HighDefinition
 
         static int ValidateLutResolution(float value)
         {
-            return (int)(value < 4 ? 4 : value);
+            return (int) (value < 4 ? 4 : value);
         }
 
         static Vector4 GetSizeAndInvSize(int width, int height)
