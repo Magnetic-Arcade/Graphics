@@ -51,6 +51,9 @@ struct VaryingsMeshToPS
 #ifdef VARYINGS_NEED_COLOR
     float4 color;
 #endif
+#ifdef VARYINGS_NEED_VERTEX_FOG
+    float4 vertexFog;
+#endif
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -80,9 +83,11 @@ struct PackedVaryingsMeshToPS
 #elif defined(VARYINGS_NEED_TEXCOORD2)
     float2 interpolators4 : TEXCOORD4;
 #endif
-
 #ifdef VARYINGS_NEED_COLOR
     float4 interpolators5 : TEXCOORD5;
+#endif
+#ifdef VARYINGS_NEED_VERTEX_FOG
+    float4 interpolators6 : TEXCOORD6;
 #endif
 
     UNITY_VERTEX_INPUT_INSTANCE_ID // Must be declare before FRONT_FACE_SEMANTIC
@@ -126,6 +131,9 @@ PackedVaryingsMeshToPS PackVaryingsMeshToPS(VaryingsMeshToPS input)
 #ifdef VARYINGS_NEED_COLOR
     output.interpolators5 = input.color;
 #endif
+#ifdef VARYINGS_NEED_VERTEX_FOG
+    output.interpolators6 = input.vertexFog;
+#endif
 
     return output;
 }
@@ -167,6 +175,9 @@ FragInputs UnpackVaryingsMeshToFragInputs(PackedVaryingsMeshToPS input)
 #endif
 #ifdef VARYINGS_NEED_COLOR
     output.color = input.interpolators5;
+#endif
+#ifdef VARYINGS_NEED_VERTEX_FOG
+    output.fog = input.interpolators6;
 #endif
 
 #if defined(VARYINGS_NEED_CULLFACE) && SHADER_STAGE_FRAGMENT
@@ -225,6 +236,9 @@ struct VaryingsMeshToDS
 #ifdef VARYINGS_DS_NEED_COLOR
     float4 color;
 #endif
+#ifdef VARYINGS_DS_NEED_VERTEX_FOG
+    float4 vertexFog;
+#endif
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -253,6 +267,9 @@ struct PackedVaryingsMeshToDS
 
 #ifdef VARYINGS_DS_NEED_COLOR
     float4 interpolators5 : TEXCOORD2;
+#endif
+#ifdef VARYINGS_DS_NEED_COLOR
+    float4 interpolators6 : TEXCOORD3;
 #endif
 
      UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -285,6 +302,9 @@ PackedVaryingsMeshToDS PackVaryingsMeshToDS(VaryingsMeshToDS input)
 #ifdef VARYINGS_DS_NEED_COLOR
     output.interpolators5 = input.color;
 #endif
+#ifdef VARYINGS_DS_NEED_VERTEX_FOG
+    output.interpolators6 = input.vertexFog;
+#endif
 
     return output;
 }
@@ -314,6 +334,9 @@ VaryingsMeshToDS UnpackVaryingsMeshToDS(PackedVaryingsMeshToDS input)
 #endif
 #ifdef VARYINGS_DS_NEED_COLOR
     output.color = input.interpolators5;
+#endif
+#ifdef VARYINGS_DS_NEED_VERTEX_FOG
+    output.vertexFog = input.interpolators6;
 #endif
 
     return output;
@@ -345,6 +368,9 @@ VaryingsMeshToDS InterpolateWithBaryCoordsMeshToDS(VaryingsMeshToDS input0, Vary
 #endif
 #ifdef VARYINGS_DS_NEED_COLOR
     TESSELLATION_INTERPOLATE_BARY(color, baryCoords);
+#endif
+#ifdef VARYINGS_DS_NEED_VERTEX_FOG
+    TESSELLATION_INTERPOLATE_BARY(vertexFog, baryCoords);
 #endif
 
     return output;

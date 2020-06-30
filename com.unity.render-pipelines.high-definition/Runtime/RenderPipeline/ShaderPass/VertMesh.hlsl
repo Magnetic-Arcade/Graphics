@@ -175,6 +175,9 @@ VaryingsMeshType VertMesh(AttributesMesh input)
 #if defined(VARYINGS_NEED_COLOR) || defined(VARYINGS_DS_NEED_COLOR)
         output.color = input.color;
 #endif
+#if defined(VARYINGS_NEED_VERTEX_FOG) || defined(VARYINGS_DS_NEED_VERTEX_FOG)
+        EvaluateVertexAtmosphericScattering(positionRWS, GetWorldSpaceNormalizeViewDir(positionRWS), output.vertexFog);
+#endif
 
 #if TEST_RECURSIVE_RENDERING
     }
@@ -217,6 +220,9 @@ VaryingsMeshToPS VertMeshTesselation(VaryingsMeshToDS input)
 #endif
 #ifdef VARYINGS_NEED_COLOR
     output.color = input.color;
+#endif
+#ifdef VARYINGS_NEED_VERTEX_FOG
+    output.vertexFog = input.vertexFog;
 #endif
 
     return output;

@@ -279,7 +279,7 @@ void EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, out float3
         {
             float4 value = SampleVBuffer(TEXTURE3D_ARGS(_VBufferLighting, s_linear_clamp_sampler),
                                          posInput.positionNDC,
-                                         fogFragDist,   
+                                         fogFragDist,
                                          _VBufferViewportSize,
                                          _VBufferLightingViewportScale.xyz,
                                          _VBufferLightingViewportLimit.xyz,
@@ -375,5 +375,68 @@ void EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, out float3
     }
 }
 
+void EvaluateVertexAtmosphericScattering(float3 positionWS, float3 V, out float4 vertexFog)
+{
+    // TODO: do not recompute this, but rather pass it directly.
+    // Note1: remember the hacked value of 'posInput.positionWS'.
+    // Note2: we do not adjust it anymore to account for the distance to the planet. This can lead to wrong results (since the planet does not write depth).
+    float fogFragDist = distance(positionWS, GetCurrentViewPosition());
+    float3 color = 0;
+    float3 opacity = 0;
+
+    if (_FogEnabled)
+    {
+        float4 volFog = float4(0.0, 0.0, 0.0, 0.0);
+
+        float expFogStart = 0.0f;
+
+        // TODO: if 'posInput.linearDepth' is computed using 'posInput.positionWS',
+        // and the latter resides on the far plane, the computation will be numerically unstable.
+        float distDelta = fogFragDist - expFogStart;
+
+        if ((distDelta > 0))
+        {
+            // Apply the distant (fallback) fog.
+            float3 positionWS = GetCurrentViewPosition() - V * expFogStart;
+            float  startHeight = positionWS.y;
+            float  cosZenith = -V.y;
+
+            // For both homogeneous and exponential media,
+            // Integrate[Transmittance[x] * Scattering[x], {x, 0, t}] = Albedo * Opacity[t].
+            // Note that pulling the incoming radiance (which is affected by the fog) out of the
+            // integral is wrong, as it means that shadow rays are not volumetrically shadowed.
+            // This will result in fog looking overly bright.
+
+            float3 volAlbedo = _HeightFogBaseScattering.xyz / _HeightFogBaseExtinction;
+            float  odFallback = OpticalDepthHeightFog(_HeightFogBaseExtinction, _HeightFogBaseHeight,
+                _HeightFogExponents, cosZenith, startHeight, distDelta);
+            float  trFallback = TransmittanceFromOpticalDepth(odFallback);
+            float  trCamera = 1 - volFog.a;
+
+            volFog.rgb += trCamera * GetFogColor(V, fogFragDist) * GetCurrentExposureMultiplier() * volAlbedo * (1 - trFallback);
+            volFog.a = 1 - (trCamera * trFallback);
+        }
+
+        color = volFog.rgb; // Already pre-exposed
+        opacity = volFog.a;
+    }
+
+    // Sky pass already applies atmospheric scattering to the far plane.
+    // This pass only handles geometry.
+    if (_PBRFogEnabled)
+    {
+        float3 skyColor = 0, skyOpacity = 0;
+
+        // Convert it to distance along the ray. Doesn't work with tilt shift, etc.
+        float tFrag = fogFragDist * rcp(dot(-V, GetViewForwardDir1(UNITY_MATRIX_V)));
+
+        EvaluatePbrAtmosphere(_WorldSpaceCameraPos.xyz, V, tFrag, false, skyColor, skyOpacity);
+        skyColor *= _IntensityMultiplier * GetCurrentExposureMultiplier();
+
+        CompositeOver(color, opacity, skyColor, skyOpacity, color, opacity);
+    }
+
+    vertexFog = float4(color.rgb, opacity.x);
+}
 
 #endif
