@@ -21,7 +21,6 @@ namespace UnityEditor.Rendering.HighDefinition
         protected SerializedDataParameter m_MeanFreePath;
         protected SerializedDataParameter m_BaseHeight;
         protected SerializedDataParameter m_MaximumHeight;
-        protected SerializedDataParameter m_EnableAtmosphericScattering;
         protected SerializedDataParameter m_Anisotropy;
         protected SerializedDataParameter m_GlobalLightProbeDimmer;
         protected SerializedDataParameter m_EnableVolumetricFog;
@@ -63,7 +62,6 @@ namespace UnityEditor.Rendering.HighDefinition
             m_MeanFreePath = Unpack(o.Find(x => x.meanFreePath));
             m_BaseHeight = Unpack(o.Find(x => x.baseHeight));
             m_MaximumHeight = Unpack(o.Find(x => x.maximumHeight));
-            m_EnableAtmosphericScattering = Unpack(o.Find(x => x.enableAtmosphericScattering));
             m_Anisotropy = Unpack(o.Find(x => x.anisotropy));
             m_GlobalLightProbeDimmer = Unpack(o.Find(x => x.globalLightProbeDimmer));
             m_EnableVolumetricFog = Unpack(o.Find(x => x.enableVolumetricFog));
@@ -77,6 +75,7 @@ namespace UnityEditor.Rendering.HighDefinition
         public override void OnInspectorGUI()
         {
             PropertyField(m_Enabled, s_Enabled);
+            PropertyField(m_AddPbrSkyScattering, s_AddPbrSkyScattering);
 
             PropertyField(m_MeanFreePath, s_MeanFreePathLabel);
             PropertyField(m_BaseHeight, s_BaseHeightLabel);
@@ -107,9 +106,6 @@ namespace UnityEditor.Rendering.HighDefinition
                 }
             }
             EditorGUI.indentLevel--;
-
-
-            PropertyField(m_EnableAtmosphericScattering, s_EnableAtmosphericScattering);
 
             bool volumetricLightingAvailable = false;
             var hdpipe = HDRenderPipeline.currentAsset;
