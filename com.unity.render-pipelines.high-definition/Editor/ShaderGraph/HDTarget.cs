@@ -195,7 +195,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         }
 
         public override object saveContext => m_ActiveSubTarget.value?.saveContext;
-        
+
         // IHasMetaData
         public string identifier
         {
@@ -220,7 +220,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         {
             if(!subTargetType.IsSubclassOf(typeof(SubTarget)))
                 return false;
-            
+
             foreach(var subTarget in m_SubTargets)
             {
                 if(subTarget.GetType().Equals(subTargetType))
@@ -266,7 +266,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         {
             if(!(subTarget is IRequiresData<T> requiresData))
                 return;
-            
+
             // Ensure data object exists in list
             var data = m_Datas.SelectValue().FirstOrDefault(x => x.GetType().Equals(typeof(T))) as T;
             if(data == null)
@@ -311,11 +311,11 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             {
                 if(!(subTarget is ILegacyTarget legacySubTarget))
                     continue;
-                
+
                 // Ensure all SubTargets have any required data to fill out during upgrade
                 ProcessSubTargetDatas(subTarget);
                 subTarget.target = this;
-                
+
                 if(legacySubTarget.TryUpgradeFromMasterNode(masterNode, out blockMap))
                 {
                     m_ActiveSubTarget = subTarget;
@@ -385,6 +385,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             new FieldDependency(HDStructFields.VaryingsMeshToPS.texCoord2,                           HDStructFields.VaryingsMeshToDS.texCoord2),
             new FieldDependency(HDStructFields.VaryingsMeshToPS.texCoord3,                           HDStructFields.VaryingsMeshToDS.texCoord3),
             new FieldDependency(HDStructFields.VaryingsMeshToPS.color,                               HDStructFields.VaryingsMeshToDS.color),
+            new FieldDependency(HDStructFields.VaryingsMeshToPS.vertexFog,                           HDStructFields.VaryingsMeshToDS.vertexFog),
             new FieldDependency(HDStructFields.VaryingsMeshToPS.instanceID,                          HDStructFields.VaryingsMeshToDS.instanceID),
 
             //Tessellation Varying Dependencies, TODO: Why is this loop created?
@@ -394,6 +395,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             new FieldDependency(HDStructFields.VaryingsMeshToDS.texCoord2,                           HDStructFields.VaryingsMeshToPS.texCoord2),
             new FieldDependency(HDStructFields.VaryingsMeshToDS.texCoord3,                           HDStructFields.VaryingsMeshToPS.texCoord3),
             new FieldDependency(HDStructFields.VaryingsMeshToDS.color,                               HDStructFields.VaryingsMeshToPS.color),
+            new FieldDependency(HDStructFields.VaryingsMeshToPS.vertexFog,                           HDStructFields.VaryingsMeshToDS.vertexFog),
             new FieldDependency(HDStructFields.VaryingsMeshToDS.instanceID,                          HDStructFields.VaryingsMeshToPS.instanceID),
         };
 
@@ -408,6 +410,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             new FieldDependency(HDStructFields.FragInputs.texCoord2,                                 HDStructFields.VaryingsMeshToPS.texCoord2),
             new FieldDependency(HDStructFields.FragInputs.texCoord3,                                 HDStructFields.VaryingsMeshToPS.texCoord3),
             new FieldDependency(HDStructFields.FragInputs.color,                                     HDStructFields.VaryingsMeshToPS.color),
+            new FieldDependency(HDStructFields.FragInputs.vertexFog,                                 HDStructFields.VaryingsMeshToPS.vertexFog),
             new FieldDependency(HDStructFields.FragInputs.IsFrontFace,                               HDStructFields.VaryingsMeshToPS.cullFace),
         };
 
@@ -829,6 +832,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             { CoreKeywordDescriptors.BlendMode },
             { CoreKeywordDescriptors.DoubleSided, new FieldCondition(HDFields.SubShader.Unlit, false) },
             { CoreKeywordDescriptors.FogOnTransparent },
+            // { CoreKeywordDescriptors.EnableVertexFog, new FieldCondition(HDFields.EnableVertexFog, true) },
             { CoreKeywordDescriptors.AlphaTest, new FieldCondition(Fields.AlphaTest, true) },
         };
 
@@ -838,6 +842,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             { CoreKeywordDescriptors.BlendMode },
             { CoreKeywordDescriptors.DoubleSided, new FieldCondition(HDFields.SubShader.Unlit, false) },
             { CoreKeywordDescriptors.FogOnTransparent },
+            // { CoreKeywordDescriptors.EnableVertexFog, new FieldCondition(HDFields.EnableVertexFog, true) },
             { CoreKeywordDescriptors.AlphaTest, new FieldCondition(Fields.AlphaTest, true) },
         };
 
@@ -893,7 +898,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             { HDBaseNoCrossFade },
             { CoreKeywordDescriptors.TransparentColorShadow },
         };
-        
+
     }
 #endregion
 
@@ -980,7 +985,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         public const string kNormalSurfaceGradient = "Packages/com.unity.render-pipelines.core/ShaderLibrary/NormalSurfaceGradient.hlsl";
         public const string kLighting = "Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/Lighting.hlsl";
         public const string kLightLoop = "Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/LightLoop/LightLoop.hlsl";
-        
+
         // Public Pregraph Material
         public const string kUnlit = "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Unlit/Unlit.hlsl";
         public const string kLit = "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Lit/Lit.hlsl";
@@ -1012,7 +1017,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             { kShaderVariables, IncludeLocation.Pregraph },
             { kFragInputs, IncludeLocation.Pregraph },
             { kShaderPass, IncludeLocation.Pregraph },
-            { kDebugDisplay, IncludeLocation.Pregraph },            
+            { kDebugDisplay, IncludeLocation.Pregraph },
             { kMaterial, IncludeLocation.Pregraph },
         };
 
@@ -1037,7 +1042,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             { kShaderVariablesRaytracing, IncludeLocation.Pregraph },
             { kShaderVariablesRaytracingLightLoop, IncludeLocation.Pregraph },
 
-            // We want the gbuffer payload only if we are in the gbuffer pass 
+            // We want the gbuffer payload only if we are in the gbuffer pass
             { kRaytracingIntersectionGBuffer, IncludeLocation.Pregraph, new FieldCondition(HDFields.ShaderPass.RayTracingGBuffer, true)},
 
             // We want the sub-surface payload if we are in the subsurface sub shader and this not an unlit
@@ -1073,7 +1078,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             { kNormalBuffer, IncludeLocation.Pregraph, new FieldCondition[]{
                 new FieldCondition(HDFields.ShaderPass.RayTracingGBuffer, true),
                 new FieldCondition(HDFields.SubShader.Unlit, true) }},
-                
+
             // If this is the gbuffer sub-shader, we want the standard lit data
             { kStandardLit, IncludeLocation.Pregraph,
                 new FieldCondition(HDFields.ShaderPass.RayTracingGBuffer, true)},
@@ -1120,7 +1125,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             definition = KeywordDefinition.Predefined,
             scope = KeywordScope.Global,
         };
-        
+
         public static KeywordDescriptor WriteNormalBuffer = new KeywordDescriptor()
         {
             displayName = "Write Normal Buffer",
@@ -1268,6 +1273,15 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         {
             displayName = "Double Sided",
             referenceName = "_DOUBLESIDED_ON",
+            type = KeywordType.Boolean,
+            definition = KeywordDefinition.ShaderFeature,
+            scope = KeywordScope.Local,
+        };
+
+        public static KeywordDescriptor EnableVertexFog = new KeywordDescriptor()
+        {
+            displayName = "Enable Vertex Fog",
+            referenceName = "_VERTEX_FOG_ON",
             type = KeywordType.Boolean,
             definition = KeywordDefinition.ShaderFeature,
             scope = KeywordScope.Local,

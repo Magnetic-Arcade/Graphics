@@ -177,7 +177,7 @@ FragInputs UnpackVaryingsMeshToFragInputs(PackedVaryingsMeshToPS input)
     output.color = input.interpolators5;
 #endif
 #ifdef VARYINGS_NEED_VERTEX_FOG
-    output.fog = input.interpolators6;
+    output.vertexFog = input.interpolators6;
 #endif
 
 #if defined(VARYINGS_NEED_CULLFACE) && SHADER_STAGE_FRAGMENT
@@ -210,6 +210,9 @@ FragInputs UnpackVaryingsMeshToFragInputs(PackedVaryingsMeshToPS input)
 #endif
 #if defined(VARYINGS_NEED_COLOR) || defined(ATTRIBUTES_NEED_COLOR)
 #define VARYINGS_DS_NEED_COLOR
+#endif
+#if defined(VARYINGS_NEED_VERTEX_FOG)
+#define VARYINGS_DS_NEED_VERTEX_FOG
 #endif
 
 // Varying for domain shader
@@ -268,7 +271,7 @@ struct PackedVaryingsMeshToDS
 #ifdef VARYINGS_DS_NEED_COLOR
     float4 interpolators5 : TEXCOORD2;
 #endif
-#ifdef VARYINGS_DS_NEED_COLOR
+#ifdef VARYINGS_DS_NEED_VERTEX_FOG
     float4 interpolators6 : TEXCOORD3;
 #endif
 

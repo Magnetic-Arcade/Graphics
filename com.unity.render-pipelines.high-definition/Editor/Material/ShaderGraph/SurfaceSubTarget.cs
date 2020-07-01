@@ -131,7 +131,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
 
                 if (supportPathtracing)
                     passes.Add(HDShaderPasses.GeneratePathTracing(supportLighting));
-                
+
                 return passes;
             }
         }
@@ -140,7 +140,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         {
             if (String.IsNullOrEmpty(subShaderDescriptor.pipelineTag))
                 subShaderDescriptor.pipelineTag = HDRenderPipeline.k_ShaderTagName;
-            
+
             var passes = subShaderDescriptor.passes.ToArray();
             PassCollection finalPasses = new PassCollection();
             for (int i = 0; i < passes.Length; i++)
@@ -157,6 +157,17 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
                     foreach (var field in originalRequireFields)
                         passDescriptor.requiredFields.Add(field.field);
                 passDescriptor.requiredFields.Add(subShaderField);
+
+                if (ShaderConfig.s_DeferredFog == 0)
+                {
+                    if (builtinData.vertexFog &&
+                        (passDescriptor.referenceName == "SHADERPASS_FORWARD" ||
+                         passDescriptor.referenceName == "SHADERPASS_FORWARD_UNLIT"))
+                    {
+                        passDescriptor.requiredFields.Add(HDStructFields.VaryingsMeshToPS.vertexFog);
+                        passDescriptor.requiredFields.Add(HDStructFields.FragInputs.vertexFog);
+                    }
+                }
 
                 IncludeCollection finalIncludes = new IncludeCollection();
                 var includeList = passDescriptor.includes.Select(include => include.descriptor).ToList();
@@ -200,7 +211,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         public override void GetFields(ref TargetFieldContext context)
         {
             base.GetFields(ref context);
-            
+
             if (supportDistortion)
                 AddDistortionFields(ref context);
 
@@ -230,11 +241,13 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             context.AddField(HDFields.TransparentDepthPostPass,     systemData.surfaceType != SurfaceType.Opaque && systemData.alphaTestDepthPostpass);
 
             // Features & Misc
+            // Vertex Fog
             context.AddField(Fields.LodCrossFade,                   systemData.supportLodCrossFade);
             context.AddField(Fields.VelocityPrecomputed,            builtinData.addPrecomputedVelocity);
             context.AddField(HDFields.TransparentWritesMotionVec,   systemData.surfaceType != SurfaceType.Opaque && builtinData.transparentWritesMotionVec);
             context.AddField(Fields.AlphaToMask,                    systemData.alphaTest && context.pass.validPixelBlocks.Contains(BlockFields.SurfaceDescription.AlphaClipThreshold) && builtinData.alphaToMask);
             context.AddField(HDFields.DepthOffset,                  builtinData.depthOffset && context.pass.validPixelBlocks.Contains(HDBlockFields.SurfaceDescription.DepthOffset));
+            context.AddField(HDFields.VertexFog,                    builtinData.vertexFog);
             context.AddField(HDFields.AlphaFog,                     systemData.surfaceType != SurfaceType.Opaque && builtinData.transparencyFog);
             context.AddField(HDFields.TransparentBackFace,          systemData.surfaceType != SurfaceType.Opaque && builtinData.backThenFrontRendering);
         }
@@ -323,6 +336,16 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
                     value = true,
                     hidden = true,
                     overrideReferenceName = kAddPrecomputedVelocity,
+                });
+            }
+
+            if (builtinData.addPrecomputedVelocity)
+            {
+                collector.AddShaderProperty(new BooleanShaderProperty
+                {
+                    value = true,
+                    hidden = true,
+                    overrideReferenceName = "_EnableVertexFog",
                 });
             }
 

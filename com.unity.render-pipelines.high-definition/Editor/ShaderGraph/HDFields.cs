@@ -117,7 +117,10 @@ namespace UnityEditor.Rendering.HighDefinition
         public static FieldDescriptor TransparentDepthPrePass = new FieldDescriptor(string.Empty, "TransparentDepthPrePass", string.Empty);
         public static FieldDescriptor TransparentDepthPostPass = new FieldDescriptor(string.Empty, "TransparentDepthPostPass", string.Empty);
         public static FieldDescriptor EnableShadowMatte =        new FieldDescriptor(string.Empty, "EnableShadowMatte", "_ENABLE_SHADOW_MATTE");
-        public static FieldDescriptor RayTracing =              new FieldDescriptor(string.Empty, "RayTracing", string.Empty);
+        public static FieldDescriptor RayTracing = new FieldDescriptor(string.Empty, "RayTracing", string.Empty);
+
+        // Vertex Fog
+        public static FieldDescriptor VertexFog = new FieldDescriptor(string.Empty, "VertexFog", "_VERTEX_FOG_ON");
 
         // Advanced
         public static FieldDescriptor AnisotropyForAreaLights = new FieldDescriptor(string.Empty, "AnisotropyForAreaLights", "_ANISOTROPY_FOR_AREA_LIGHTS");

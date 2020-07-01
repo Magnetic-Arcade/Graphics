@@ -32,6 +32,10 @@
 #endif
 #define VARYINGS_NEED_COLOR
 
+#ifdef _VERTEX_FOG_ON
+#define VARYINGS_NEED_VERTEX_COLOR
+#endif
+
 #ifdef _DOUBLESIDED_ON
 #define VARYINGS_NEED_CULLFACE
 #endif

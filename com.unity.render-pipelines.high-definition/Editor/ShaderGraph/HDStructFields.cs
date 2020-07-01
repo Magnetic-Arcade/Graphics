@@ -52,6 +52,8 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
                 subscriptOptions : StructFieldOptions.Optional);
             public static FieldDescriptor color = new FieldDescriptor(VaryingsMeshToPS.name, "color", "VARYINGS_NEED_COLOR", ShaderValueType.Float4,
                 subscriptOptions : StructFieldOptions.Optional);
+            public static FieldDescriptor vertexFog = new FieldDescriptor(VaryingsMeshToPS.name, "vertexFog", "VARYINGS_NEED_VERTEX_FOG", ShaderValueType.Float4,
+                subscriptOptions : StructFieldOptions.Optional);
             public static FieldDescriptor instanceID = new FieldDescriptor(VaryingsMeshToPS.name, "instanceID", "", ShaderValueType.Uint,
                 "CUSTOM_INSTANCE_ID", "UNITY_ANY_INSTANCING_ENABLED");
             public static FieldDescriptor cullFace = new FieldDescriptor(VaryingsMeshToPS.name, "cullFace", "VARYINGS_NEED_CULLFACE", "FRONT_FACE_TYPE",
@@ -75,6 +77,8 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
                 subscriptOptions : StructFieldOptions.Optional);
             public static FieldDescriptor color = new FieldDescriptor(VaryingsMeshToDS.name, "color", "VARYINGS_NEED_COLOR", ShaderValueType.Float4,
                 subscriptOptions : StructFieldOptions.Optional);
+            public static FieldDescriptor vertexFog = new FieldDescriptor(VaryingsMeshToDS.name, "vertexFog", "VARYINGS_NEED_VERTEX_FOG", ShaderValueType.Float4,
+               subscriptOptions : StructFieldOptions.Optional);
             public static FieldDescriptor instanceID = new FieldDescriptor(VaryingsMeshToDS.name, "instanceID", "", ShaderValueType.Uint,
                 "INSTANCEID_SEMANTIC", "UNITY_ANY_INSTANCING_ENABLED");
         }
@@ -95,6 +99,8 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             public static FieldDescriptor texCoord3 = new FieldDescriptor(FragInputs.name, "texCoord3", "", ShaderValueType.Float4,
                 subscriptOptions : StructFieldOptions.Optional);
             public static FieldDescriptor color = new FieldDescriptor(FragInputs.name, "color", "", ShaderValueType.Float4,
+                subscriptOptions : StructFieldOptions.Optional);
+            public static FieldDescriptor vertexFog = new FieldDescriptor(FragInputs.name, "vertexFog", "", ShaderValueType.Float4,
                 subscriptOptions : StructFieldOptions.Optional);
             public static FieldDescriptor IsFrontFace = new FieldDescriptor(FragInputs.name, "isFrontFace", "", ShaderValueType.Boolean,
                 subscriptOptions : StructFieldOptions.Optional);

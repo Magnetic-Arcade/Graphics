@@ -221,8 +221,9 @@ void Frag(PackedVaryingsToPS packedInput,
             ENCODE_INTO_SSSBUFFER(surfaceData, posInput.positionSS, outSSSBuffer);
 #else
             outColor = ApplyBlendMode(diffuseLighting, specularLighting, builtinData.opacity);
-            outColor = EvaluateAtmosphericScattering(posInput, V, outColor);
 #endif
+
+            outColor = EvaluateAtmosphericScattering(posInput, V, outColor, input.vertexFog);
 
 #ifdef _WRITE_TRANSPARENT_MOTION_VECTOR
             VaryingsPassToPS inputPass = UnpackVaryingsPassToPS(packedInput.vpass);

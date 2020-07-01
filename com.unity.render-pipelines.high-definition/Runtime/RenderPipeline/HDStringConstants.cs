@@ -311,7 +311,7 @@ namespace UnityEngine.Rendering.HighDefinition
         public static readonly int _SsrClearCoatMaskTexture           = Shader.PropertyToID("_SsrClearCoatMaskTexture");
         public static readonly int _DepthPyramidMipLevelOffsets       = Shader.PropertyToID("_DepthPyramidMipLevelOffsets");
         public static readonly int _DepthPyramidFirstMipLevelOffset   = Shader.PropertyToID("_DepthPyramidFirstMipLevelOffset");
-        
+
 
         // Still used by ray tracing.
         public static readonly int _SsrStencilBit = Shader.PropertyToID("_SsrStencilBit");
@@ -570,7 +570,7 @@ namespace UnityEngine.Rendering.HighDefinition
         public static readonly int _LowResolutionTexture                = Shader.PropertyToID("_LowResolutionTexture");
         public static readonly int _OutputUpscaledTexture               = Shader.PropertyToID("_OutputUpscaledTexture");
         public static readonly int _IndirectDiffuseSpatialFilter        = Shader.PropertyToID("_IndirectDiffuseSpatialFilter");
-        
+
         // Deferred Lighting
         public static readonly int _RaytracingLitBufferRW           = Shader.PropertyToID("_RaytracingLitBufferRW");
         public static readonly int _RayTracingDiffuseLightingOnly   = Shader.PropertyToID("_RayTracingDiffuseLightingOnly");
@@ -871,6 +871,7 @@ namespace UnityEngine.Rendering.HighDefinition
         public const string kEmissionColor = "_EmissionColor";
         public const string kTransparentBackfaceEnable = "_TransparentBackfaceEnable";
         public const string kDoubleSidedEnable = "_DoubleSidedEnable";
+        public const string kVertexFog = "_VertexFog";
         public const string kDoubleSidedNormalMode = "_DoubleSidedNormalMode";
         public const string kDistortionOnly = "_DistortionOnly";
         public const string kTransparentDepthPrepassEnable = "_TransparentDepthPrepassEnable";

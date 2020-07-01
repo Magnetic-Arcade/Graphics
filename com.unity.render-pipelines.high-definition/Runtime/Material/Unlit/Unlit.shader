@@ -69,6 +69,7 @@ Shader "HDRP/Unlit"
         [HideInInspector] _StencilWriteMaskMV("_StencilWriteMaskMV", Int) = 32 // StencilUsage.ObjectMotionVector
 
         [ToggleUI] _AddPrecomputedVelocity("AddPrecomputedVelocity", Float) = 0.0
+        [ToggleUI] _VertexFog("Enable Vertex Fog", Float) = 0.0
 
         // Distortion vector pass
         [HideInInspector] _StencilRefDistortionVec("_StencilRefDistortionVec", Int) = 2 // StencilUsage.DistortionVectors
@@ -115,6 +116,7 @@ Shader "HDRP/Unlit"
     #pragma shader_feature_local _ENABLE_FOG_ON_TRANSPARENT
 
     #pragma shader_feature_local _ADD_PRECOMPUTED_VELOCITY
+    #pragma shader_feature_local _VERTEX_FOG_ON
 
     //-------------------------------------------------------------------------------------
     // Define
@@ -540,7 +542,7 @@ Shader "HDRP/Unlit"
 
             #define SHADOW_LOW
             #pragma multi_compile _ TRANSPARENT_COLOR_SHADOW
-            
+
             #define SHADERPASS SHADERPASS_RAYTRACING_VISIBILITY
 
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/RenderPipeline/Raytracing/Shaders/RaytracingMacros.hlsl"

@@ -68,13 +68,18 @@ float4 ApplyBlendMode(float3 color, float opacity)
 
 // Used for transparent object. input color is color + alpha of the original transparent pixel.
 // This must be call after ApplyBlendMode to work correctly
-float4 EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, float4 inputColor)
+float4 EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, float4 inputColor, float4 vertexFog)
 {
     float4 result = inputColor;
 
-#ifdef _ENABLE_FOG_ON_TRANSPARENT
+#if defined(_ENABLE_FOG_ON_TRANSPARENT) || SHADEROPTIONS_DEFERRED_FOG == 0
     float3 volColor, volOpacity;
-    EvaluateAtmosphericScattering(posInput, V, volColor, volOpacity); // Premultiplied alpha
+
+    #ifdef _VERTEX_FOG_ON
+        EvaluateVolumetricFog(posInput, V, vertexFog, volColor, volOpacity);
+    #else
+        EvaluateAtmosphericScattering(posInput, V, volColor, volOpacity); // Premultiplied alpha
+    #endif
 
     #if defined(_BLENDMODE_ALPHA)
         // Regular alpha blend need to multiply fog color by opacity (as we do src * src_a inside the shader)
@@ -92,6 +97,8 @@ float4 EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, float4 i
         // Note: this formula for color is correct, assuming we apply the Over operator afterwards
         // (see the appendix in the Deep Compositing paper). But do we?
         // Additionally, we do not modify the alpha here, which is most certainly WRONG.
+    #else
+        result.rgb = result.rgb * (1 - volOpacity) + volColor;
     #endif
 #else
     // Evaluation of fog for opaque objects is currently done in a full screen pass independent from any material parameters.
@@ -100,6 +107,12 @@ float4 EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, float4 i
 
     return result;
 }
+
+float4 EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, float4 inputColor)
+{
+    return EvaluateAtmosphericScattering(posInput, V, inputColor, 0);
+}
+
 
 //-----------------------------------------------------------------------------
 // Alpha test replacement

@@ -439,4 +439,41 @@ void EvaluateVertexAtmosphericScattering(float3 positionWS, float3 V, out float4
     vertexFog = float4(color.rgb, opacity.x);
 }
 
+void EvaluateVolumetricFog(PositionInputs posInput, float3 V, float4 globalFog, out float3 color, out float3 opacity)
+{
+    // TODO: do not recompute this, but rather pass it directly.
+    // Note1: remember the hacked value of 'posInput.positionWS'.
+    // Note2: we do not adjust it anymore to account for the distance to the planet. This can lead to wrong results (since the planet does not write depth).
+    float fogFragDist = distance(posInput.positionWS, GetCurrentViewPosition());
+
+    if (_FogEnabled)
+    {
+        float4 volFog = float4(0.0, 0.0, 0.0, 0.0);
+
+        float expFogStart = 0.0f;
+
+        if (_EnableVolumetricFog != 0)
+        {
+            float4 value = SampleVBuffer(TEXTURE3D_ARGS(_VBufferLighting, s_linear_clamp_sampler),
+                                         posInput.positionNDC,
+                                         fogFragDist,
+                                         _VBufferViewportSize,
+                                         _VBufferLightingViewportScale.xyz,
+                                         _VBufferLightingViewportLimit.xyz,
+                                         _VBufferDistanceEncodingParams,
+                                         _VBufferDistanceDecodingParams,
+                                         true, false);
+
+            // TODO: add some slowly animated noise (dither?) to the reconstructed value.
+            // TODO: re-enable tone mapping after implementing pre-exposure.
+            volFog = DelinearizeRGBA(float4(/*FastTonemapInvert*/(value.rgb), value.a));
+            expFogStart = _VBufferLastSliceDist;
+        }
+
+        color = volFog.rgb + (1 - volFog.a) * globalFog.rgb; // Already pre-exposed
+        //opacity = volFog.a * globalFog.a;
+        opacity = volFog.a + (1 - volFog.a) * globalFog.a;
+    }
+}
+
 #endif

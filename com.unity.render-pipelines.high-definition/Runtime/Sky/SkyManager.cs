@@ -941,6 +941,9 @@ namespace UnityEngine.Rendering.HighDefinition
                 if (volumetricLighting != null)
                     m_OpaqueAtmScatteringBlock.SetTexture(HDShaderIDs._VBufferLighting, volumetricLighting);
 
+                if (ShaderConfig.s_DeferredFog == 0)
+                    return;
+
                 if (Fog.IsPBRFogEnabled(hdCamera))
                 {
                     // Color -> Intermediate.

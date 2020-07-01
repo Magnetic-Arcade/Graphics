@@ -21,7 +21,7 @@ namespace UnityEditor.Rendering.HighDefinition
 
             bool alphaToMaskEnable = alphaTestEnable && material.HasProperty(kAlphaToMask) && material.GetFloat(kAlphaToMask) > 0.0f;
             CoreUtils.SetKeyword(material, "_ALPHATOMASK_ON", alphaToMaskEnable);
-            
+
             SurfaceType surfaceType = material.GetSurfaceType();
             CoreUtils.SetKeyword(material, "_SURFACE_TYPE_TRANSPARENT", surfaceType == SurfaceType.Transparent);
 
@@ -205,6 +205,7 @@ namespace UnityEditor.Rendering.HighDefinition
 
             bool isBackFaceEnable = material.HasProperty(kTransparentBackfaceEnable) && material.GetFloat(kTransparentBackfaceEnable) > 0.0f && surfaceType == SurfaceType.Transparent;
             bool doubleSidedEnable = material.HasProperty(kDoubleSidedEnable) && material.GetFloat(kDoubleSidedEnable) > 0.0f;
+            bool vertexFog = material.HasProperty(kVertexFog) && material.GetFloat(kVertexFog) > 0.0f;
 
             // Disable culling if double sided
             material.SetInt("_CullMode", doubleSidedEnable ? (int)UnityEngine.Rendering.CullMode.Off : (int)doubleSidedOffMode);
@@ -220,6 +221,7 @@ namespace UnityEditor.Rendering.HighDefinition
             }
 
             CoreUtils.SetKeyword(material, "_DOUBLESIDED_ON", doubleSidedEnable);
+            CoreUtils.SetKeyword(material, "_VERTEX_FOG_ON", vertexFog);
 
             // A material's GI flag internally keeps track of whether emission is enabled at all, it's enabled but has no effect
             // or is enabled and may be modified at runtime. This state depends on the values of the current flag and emissive color.
@@ -321,7 +323,7 @@ namespace UnityEditor.Rendering.HighDefinition
                 bool rayTracingEnable = (material.GetFloat(kRayTracing) > 0.0f);
                 material.SetShaderPassEnabled(HDShaderPassNames.s_RayTracingPrepassStr, rayTracingEnable);
             }
-            
+
             // Shader graphs materials have their own management of motion vector pass in the material inspector
             if (!material.shader.IsShaderGraph())
             {

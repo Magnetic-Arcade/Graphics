@@ -40,6 +40,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
                 HDStructFields.VaryingsMeshToPS.texCoord2,
                 HDStructFields.VaryingsMeshToPS.texCoord3,
                 HDStructFields.VaryingsMeshToPS.color,
+                HDStructFields.VaryingsMeshToPS.vertexFog,
                 HDStructFields.VaryingsMeshToPS.instanceID,
                 HDStructFields.VaryingsMeshToPS.cullFace,
             }
@@ -59,6 +60,7 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
                 HDStructFields.VaryingsMeshToDS.texCoord2,
                 HDStructFields.VaryingsMeshToDS.texCoord3,
                 HDStructFields.VaryingsMeshToDS.color,
+                HDStructFields.VaryingsMeshToDS.vertexFog,
                 HDStructFields.VaryingsMeshToDS.instanceID,
             }
         };
