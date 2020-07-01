@@ -1283,5 +1283,69 @@ namespace UnityEngine.Rendering.HighDefinition
                 return new Rect(camera.pixelRect.x, camera.pixelRect.y, camera.pixelWidth, camera.pixelHeight);
         }
         #endregion
+
+#if ENABLE_VR && ENABLE_XR_MODULE
+        internal static readonly int UNITY_STEREO_MATRIX_V = Shader.PropertyToID("unity_StereoMatrixV");
+        internal static readonly int UNITY_STEREO_MATRIX_IV = Shader.PropertyToID("unity_StereoMatrixInvV");
+        internal static readonly int UNITY_STEREO_MATRIX_P = Shader.PropertyToID("unity_StereoMatrixP");
+        internal static readonly int UNITY_STEREO_MATRIX_IP = Shader.PropertyToID("unity_StereoMatrixIP");
+        internal static readonly int UNITY_STEREO_MATRIX_VP = Shader.PropertyToID("unity_StereoMatrixVP");
+        internal static readonly int UNITY_STEREO_MATRIX_IVP = Shader.PropertyToID("unity_StereoMatrixIVP");
+        internal static readonly int UNITY_STEREO_VECTOR_CAMPOS = Shader.PropertyToID("unity_StereoWorldSpaceCameraPos");
+
+        // Hold the stereo matrices in this class to avoid allocating arrays every frame
+        internal class StereoConstants
+        {
+            public Matrix4x4[] projectionMatrix = new Matrix4x4[2];
+            public Matrix4x4[] viewMatrix = new Matrix4x4[2];
+            public Matrix4x4[] viewProjMatrix = new Matrix4x4[2];
+            public Matrix4x4[] invViewMatrix = new Matrix4x4[2];
+            public Matrix4x4[] invProjMatrix = new Matrix4x4[2];
+            public Matrix4x4[] invViewProjMatrix = new Matrix4x4[2];
+            public Vector4[] worldSpaceCameraPos = new Vector4[2];
+        };
+
+        static readonly StereoConstants stereoConstants = new StereoConstants();
+
+        /// <summary>
+        /// Helper function to set all view and projection related matrices
+        /// Should be called before draw call and after cmd.SetRenderTarget
+        /// Internal usage only, function name and signature may be subject to change
+        /// </summary>
+        /// <param name="cmd">CommandBuffer to submit data to GPU.</param>
+        /// <param name="viewMatrix">View matrix to be set. Array size is 2.</param>
+        /// <param name="projectionMatrix">Projection matrix to be set.Array size is 2.</param>
+        /// <param name="setInverseMatrices">Set this to true if you also need to set inverse camera matrices.</param>
+        /// <returns>Void</c></returns>
+        internal void SetLegacyStereoViewAndProjectionMatrices(CommandBuffer cmd, bool setInverseMatrices)
+        {
+            var proj = camera.projectionMatrix;
+            var view = camera.worldToCameraMatrix;
+            var cameraPosition = camera.transform.position;
+
+            for (int i = 0; i < 2; i++)
+            {
+                GetXrViewParameters(i, out proj, out view, out cameraPosition);
+                stereoConstants.projectionMatrix[i] = view;
+                stereoConstants.viewMatrix[i] = proj;
+                stereoConstants.viewProjMatrix[i] = proj * view;
+                stereoConstants.invViewMatrix[i] = Matrix4x4.Inverse(view);
+                stereoConstants.invProjMatrix[i] = Matrix4x4.Inverse(proj);
+                stereoConstants.invViewProjMatrix[i] = Matrix4x4.Inverse(stereoConstants.viewProjMatrix[i]);
+                stereoConstants.worldSpaceCameraPos[i] = cameraPosition;
+            }
+
+            cmd.SetGlobalMatrixArray(UNITY_STEREO_MATRIX_V, stereoConstants.viewMatrix);
+            cmd.SetGlobalMatrixArray(UNITY_STEREO_MATRIX_P, stereoConstants.projectionMatrix);
+            cmd.SetGlobalMatrixArray(UNITY_STEREO_MATRIX_VP, stereoConstants.viewProjMatrix);
+            if (setInverseMatrices)
+            {
+                cmd.SetGlobalMatrixArray(UNITY_STEREO_MATRIX_IV, stereoConstants.invViewMatrix);
+                cmd.SetGlobalMatrixArray(UNITY_STEREO_MATRIX_IP, stereoConstants.invProjMatrix);
+                cmd.SetGlobalMatrixArray(UNITY_STEREO_MATRIX_IVP, stereoConstants.invViewProjMatrix);
+            }
+            cmd.SetGlobalVectorArray(UNITY_STEREO_VECTOR_CAMPOS, stereoConstants.worldSpaceCameraPos);
+        }
+#endif
     }
 }

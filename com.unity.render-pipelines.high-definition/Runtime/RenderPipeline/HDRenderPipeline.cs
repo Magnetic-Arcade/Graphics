@@ -1236,6 +1236,9 @@ namespace UnityEngine.Rendering.HighDefinition
         {
             hdCamera.UpdateShaderVariablesXRCB(ref m_ShaderVariablesXRCB);
             ConstantBuffer.PushGlobal(cmd, m_ShaderVariablesXRCB, HDShaderIDs._ShaderVariablesXR);
+
+            if (hdCamera.xr.enabled)
+                hdCamera.SetLegacyStereoViewAndProjectionMatrices(cmd, true);
         }
 
 
