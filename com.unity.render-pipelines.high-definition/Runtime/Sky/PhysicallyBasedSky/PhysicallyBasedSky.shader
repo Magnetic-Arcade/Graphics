@@ -11,6 +11,7 @@ Shader "Hidden/HDRP/Sky/PbrSky"
 
     #pragma multi_compile_local _ USE_CLOUD_MAP
     #pragma multi_compile_local _ USE_CLOUD_MOTION
+    #pragma multi_compile_local _ RENDER_BAKING
 
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
@@ -228,8 +229,9 @@ Shader "Hidden/HDRP/Sky/PbrSky"
         // Hacky way to boost the clouds for PBR sky
         skyColor += ApplyCloudLayer(-V, 0) * 1000;
         skyColor += radiance * (1 - skyOpacity);
+        skyColor *= _IntensityMultiplier;
 
-        #if SHADEROPTIONS_VERTEX_FOG == 1
+        #if SHADEROPTIONS_VERTEX_FOG == 1 && !defined(RENDER_BAKING)
             PositionInputs posInput = GetPositionInput(input.positionCS.xy, _ScreenSize.zw);
             posInput.positionWS = GetCurrentViewPosition() - V * _MaxFogDistance;
             float3 color;
@@ -237,8 +239,6 @@ Shader "Hidden/HDRP/Sky/PbrSky"
             EvaluateAtmosphericScattering(posInput, V, color, opacity); // Premultiplied alpha
             CompositeOver(color, opacity, skyColor, skyOpacity, skyColor, skyOpacity);
         #endif
-
-        skyColor *= _IntensityMultiplier;
 
         return float4(skyColor, 1.0);
     }

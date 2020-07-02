@@ -500,6 +500,7 @@ namespace UnityEngine.Rendering.HighDefinition
             s_PbrSkyMaterialProperties.SetInt(HDShaderIDs._RenderSunDisk, renderSunDisk ? 1 : 0);
 
             int pass = (renderForCubemap ? 0 : 2) + (isPbrSkyActive ? 0 : 1);
+            CoreUtils.SetKeyword(m_PbrSkyMaterial, "RENDER_BAKING", renderForCubemap);
 
             CloudLayer.Apply(builtinParams.cloudLayer, m_PbrSkyMaterial);
 
