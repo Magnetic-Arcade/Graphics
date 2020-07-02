@@ -384,6 +384,9 @@ namespace UnityEngine.Rendering.HighDefinition
 
             [Reload("Runtime/RenderPipelineResources/Texture/DefaultHDRISky.exr")]
             public Cubemap     defaultHDRISky;
+
+            [Reload("Runtime/RenderPipelineResources/Texture/DefaultCloudLayer.asset")]
+            public CustomRenderTexture defaultCloudLayer;
         }
 
         [Serializable, ReloadGroup]
@@ -396,7 +399,7 @@ namespace UnityEngine.Rendering.HighDefinition
         {
             [Reload("Runtime/RenderPipelineResources/defaultDiffusionProfile.asset")]
             public DiffusionProfileSettings defaultDiffusionProfile;
-            
+
             //Area Light Emissive Meshes
             [Reload("Runtime/RenderPipelineResources/Mesh/Cylinder.fbx")]
             public Mesh emissiveCylinderMesh;
