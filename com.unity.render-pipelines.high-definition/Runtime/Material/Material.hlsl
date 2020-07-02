@@ -75,7 +75,7 @@ float4 EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, float4 i
 #if (SHADEROPTIONS_VERTEX_FOG == 1) || defined(_ENABLE_FOG_ON_TRANSPARENT)
     float3 volColor, volOpacity;
 
-    #if SHADEROPTIONS_VERTEX_FOG
+    #if SHADEROPTIONS_VERTEX_FOG && !defined(_FORCE_PIXEL_FOG)
         AddVolumetricFog(posInput, V, vertexFog, volColor, volOpacity);
     #else
         EvaluateAtmosphericScattering(posInput, V, volColor, volOpacity); // Premultiplied alpha
