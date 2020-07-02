@@ -138,7 +138,7 @@ Shader "Hidden/HDRP/Sky/PbrSky"
                                 color *= SampleCookie2D(uv, light.surfaceTextureScaleOffset);
                                 // color *= SAMPLE_TEXTURE2D_ARRAY(_CookieTextures, s_linear_clamp_sampler, uv, light.surfaceTextureIndex).rgb;
                             }
-                            
+
                             color *= light.surfaceTint;
                         }
                         else // Flare region.
@@ -222,6 +222,15 @@ Shader "Hidden/HDRP/Sky/PbrSky"
 
         skyColor += radiance * (1 - skyOpacity);
         skyColor *= _IntensityMultiplier;
+
+        #if SHADEROPTIONS_VERTEX_FOG == 1
+            PositionInputs posInput = GetPositionInput(input.positionCS.xy, _ScreenSize.zw);
+            posInput.positionWS = GetCurrentViewPosition() - V * _MaxFogDistance;
+            float3 color;
+            float3 opacity;
+            EvaluateAtmosphericScattering(posInput, V, color, opacity); // Premultiplied alpha
+            CompositeOver(color, opacity, skyColor, skyOpacity, skyColor, skyOpacity);
+        #endif
 
         return float4(skyColor, 1.0);
     }
