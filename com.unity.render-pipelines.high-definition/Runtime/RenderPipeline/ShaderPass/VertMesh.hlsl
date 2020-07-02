@@ -176,11 +176,12 @@ VaryingsMeshType VertMesh(AttributesMesh input)
         output.color = input.color;
 #endif
 #if defined(VARYINGS_NEED_VERTEX_FOG) || defined(VARYINGS_DS_NEED_VERTEX_FOG)
-        float4 vertexFog = float4(0, 0, 0, 0);
-    #if _VERTEX_FOG_ON
-        EvaluateVertexAtmosphericScattering(positionRWS, GetWorldSpaceNormalizeViewDir(positionRWS), vertexFog);
-    #endif
-        output.vertexFog = vertexFog;
+        #if SHADEROPTIONS_VERTEX_FOG == 0
+        #error Vertex fog varyings are defined, but the vertex fog shader option is disabled.
+        #endif
+
+        float3 V = GetWorldSpaceNormalizeViewDir(positionRWS);
+        EvaluateAtmosphericScatteringPerVertex(positionRWS, GetWorldSpaceNormalizeViewDir(positionRWS), output.vertexFog);
 #endif
 
 #if TEST_RECURSIVE_RENDERING

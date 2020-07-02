@@ -63,14 +63,6 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         }
 
         [SerializeField]
-        bool m_VertexFog = false;
-        public bool vertexFog
-        {
-            get => m_VertexFog;
-            set => m_VertexFog = value;
-        }
-
-        [SerializeField]
         bool m_TransparencyFog = true;
         public bool transparencyFog
         {

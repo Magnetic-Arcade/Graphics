@@ -937,12 +937,10 @@ namespace UnityEngine.Rendering.HighDefinition
                     m_OpaqueAtmScatteringBlock.SetTexture(HDShaderIDs._ColorTextureMS, colorBuffer);
                 else
                     m_OpaqueAtmScatteringBlock.SetTexture(HDShaderIDs._ColorTexture,   colorBuffer);
+
                 // The texture can be null when volumetrics are disabled.
                 if (volumetricLighting != null)
                     m_OpaqueAtmScatteringBlock.SetTexture(HDShaderIDs._VBufferLighting, volumetricLighting);
-
-                if (ShaderConfig.s_DeferredFog == 0)
-                    return;
 
                 if (Fog.IsPBRFogEnabled(hdCamera))
                 {

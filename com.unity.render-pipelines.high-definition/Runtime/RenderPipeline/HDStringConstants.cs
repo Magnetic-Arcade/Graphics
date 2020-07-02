@@ -871,7 +871,6 @@ namespace UnityEngine.Rendering.HighDefinition
         public const string kEmissionColor = "_EmissionColor";
         public const string kTransparentBackfaceEnable = "_TransparentBackfaceEnable";
         public const string kDoubleSidedEnable = "_DoubleSidedEnable";
-        public const string kVertexFog = "_VertexFog";
         public const string kDoubleSidedNormalMode = "_DoubleSidedNormalMode";
         public const string kDistortionOnly = "_DistortionOnly";
         public const string kTransparentDepthPrepassEnable = "_TransparentDepthPrepassEnable";

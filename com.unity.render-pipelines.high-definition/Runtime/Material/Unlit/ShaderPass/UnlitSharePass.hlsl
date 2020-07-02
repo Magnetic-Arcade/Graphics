@@ -14,6 +14,10 @@
 #define VARYINGS_NEED_POSITION_WS
 #endif
 
+#if (SHADEROPTIONS_VERTEX_FOG == 1) && (SHADERPASS == SHADERPASS_FORWARD)
+#define VARYINGS_NEED_VERTEX_FOG
+#endif
+
 #define VARYINGS_NEED_TEXCOORD0
 
 // This include will define the various Attributes/Varyings structure

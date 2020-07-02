@@ -19,7 +19,6 @@ Pass
 
     // Pragmas
     $splice(PassPragmas)
-    #pragma enable_d3d11_debug_symbols
 
     // Keywords
     $splice(PassKeywords)
@@ -47,7 +46,6 @@ Pass
     $DisableSSRTransparent:             #define _DISABLE_SSR_TRANSPARENT 1
     $AddPrecomputedVelocity:            #define _ADD_PRECOMPUTED_VELOCITY
     $TransparentWritesMotionVec:        #define _WRITE_TRANSPARENT_MOTION_VECTOR 1
-    $VertexFog:                         #define _VERTEX_FOG_ON 1
     $DepthOffset:                       #define _DEPTHOFFSET_ON 1
     $BlendMode.PreserveSpecular:        #define _BLENDMODE_PRESERVE_SPECULAR_LIGHTING 1
     $NormalDropOffTS:                   #define _NORMAL_DROPOFF_TS 1
@@ -67,7 +65,7 @@ Pass
     $VaryingsMeshToPS.texCoord2:        #define VARYINGS_NEED_TEXCOORD2
     $VaryingsMeshToPS.texCoord3:        #define VARYINGS_NEED_TEXCOORD3
     $VaryingsMeshToPS.color:            #define VARYINGS_NEED_COLOR
-    $VaryingsMeshToPS.vertexColor:      #define VARYINGS_NEED_VERTEX_FOG
+    $VaryingsMeshToPS.vertexFog:        #define VARYINGS_NEED_VERTEX_FOG
     $VaryingsMeshToPS.cullFace:         #define VARYINGS_NEED_CULLFACE
     $features.graphVertex:              #define HAVE_MESH_MODIFICATION
     $splice(GraphDefines)

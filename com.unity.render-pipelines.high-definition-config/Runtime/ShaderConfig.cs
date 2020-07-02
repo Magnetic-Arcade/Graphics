@@ -24,7 +24,7 @@ namespace UnityEngine.Rendering.HighDefinition
     public enum ShaderOptions
     {
         CameraRelativeRendering = 1, // Rendering sets the origin of the world to the position of the primary (scene view) camera
-        DeferredFog = 0,
+        VertexFog = 1,
         ExposureControl = 0, //[SU] Disable exposure (for perf)
         PrecomputedAtmosphericAttenuation = 1, // Precomputes atmospheric attenuation for the directional light on the CPU, which makes it independent from the fragment's position, which is faster but wrong
 #if ENABLE_RAYTRACING
@@ -63,7 +63,7 @@ namespace UnityEngine.Rendering.HighDefinition
     {
         public static int s_CameraRelativeRendering = (int)ShaderOptions.CameraRelativeRendering;
         public static int s_ExposureControl = (int)ShaderOptions.ExposureControl;
-        public static int s_DeferredFog = (int)ShaderOptions.DeferredFog;
+        public static int s_VertexFog = (int)ShaderOptions.VertexFog;
         public static int s_XrMaxViews = (int)ShaderOptions.XrMaxViews;
         public static int s_PrecomputedAtmosphericAttenuation = (int)ShaderOptions.PrecomputedAtmosphericAttenuation;
         public static ProbeVolumesEvaluationModes s_ProbeVolumesEvaluationMode = (ProbeVolumesEvaluationModes)ShaderOptions.ProbeVolumesEvaluationMode;

@@ -832,7 +832,6 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             { CoreKeywordDescriptors.BlendMode },
             { CoreKeywordDescriptors.DoubleSided, new FieldCondition(HDFields.SubShader.Unlit, false) },
             { CoreKeywordDescriptors.FogOnTransparent },
-            // { CoreKeywordDescriptors.EnableVertexFog, new FieldCondition(HDFields.EnableVertexFog, true) },
             { CoreKeywordDescriptors.AlphaTest, new FieldCondition(Fields.AlphaTest, true) },
         };
 
@@ -842,7 +841,6 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             { CoreKeywordDescriptors.BlendMode },
             { CoreKeywordDescriptors.DoubleSided, new FieldCondition(HDFields.SubShader.Unlit, false) },
             { CoreKeywordDescriptors.FogOnTransparent },
-            // { CoreKeywordDescriptors.EnableVertexFog, new FieldCondition(HDFields.EnableVertexFog, true) },
             { CoreKeywordDescriptors.AlphaTest, new FieldCondition(Fields.AlphaTest, true) },
         };
 
@@ -1273,15 +1271,6 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
         {
             displayName = "Double Sided",
             referenceName = "_DOUBLESIDED_ON",
-            type = KeywordType.Boolean,
-            definition = KeywordDefinition.ShaderFeature,
-            scope = KeywordScope.Local,
-        };
-
-        public static KeywordDescriptor EnableVertexFog = new KeywordDescriptor()
-        {
-            displayName = "Enable Vertex Fog",
-            referenceName = "_VERTEX_FOG_ON",
             type = KeywordType.Boolean,
             definition = KeywordDefinition.ShaderFeature,
             scope = KeywordScope.Local,

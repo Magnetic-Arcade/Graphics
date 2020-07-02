@@ -33,9 +33,6 @@ namespace UnityEditor.Rendering.HighDefinition.ShaderGraph
             }
             AddProperty(Styles.supportLodCrossFade, () => systemData.supportLodCrossFade, (newValue) => systemData.supportLodCrossFade = newValue);
             AddProperty(addPrecomputedVelocityText, () => builtinData.addPrecomputedVelocity, (newValue) => builtinData.addPrecomputedVelocity = newValue);
-
-            if (ShaderConfig.s_DeferredFog == 0)
-                AddProperty(vertexFogText, () => builtinData.vertexFog, (newValue) => builtinData.vertexFog = newValue);
         }
     }
 }

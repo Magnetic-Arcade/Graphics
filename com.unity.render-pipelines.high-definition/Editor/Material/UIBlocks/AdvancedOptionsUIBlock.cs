@@ -14,7 +14,6 @@ namespace UnityEditor.Rendering.HighDefinition
             Instancing          = 1 << 0,
             SpecularOcclusion   = 1 << 1,
             AddPrecomputedVelocity  = 1 << 2,
-            VertexFog            = 1 << 3,
             All                 = ~0
         }
 
@@ -23,17 +22,14 @@ namespace UnityEditor.Rendering.HighDefinition
             public const string header = "Advanced Options";
             public static GUIContent specularOcclusionModeText = new GUIContent("Specular Occlusion Mode", "Determines the mode used to compute specular occlusion");
             public static GUIContent addPrecomputedVelocityText = new GUIContent("Add Precomputed Velocity", "Requires additional per vertex velocity info");
-            public static GUIContent vertexFogText = new GUIContent("Enable Vertex Fog", "Calculates fog in the vertex shader. (Requires disabling deferred fog)");
 
         }
 
         protected MaterialProperty specularOcclusionMode = null;
         protected MaterialProperty addPrecomputedVelocity = null;
-        protected MaterialProperty vertexFog = null;
 
         protected const string kSpecularOcclusionMode  = "_SpecularOcclusionMode";
         protected const string kAddPrecomputedVelocity = HDMaterialProperties.kAddPrecomputedVelocity;
-        protected const string kVertexFog              = "_VertexFog";
 
         Expandable  m_ExpandableBit;
         Features    m_Features;
@@ -59,7 +55,6 @@ namespace UnityEditor.Rendering.HighDefinition
             }
 
             addPrecomputedVelocity = FindProperty(kAddPrecomputedVelocity);
-            vertexFog = FindProperty(kVertexFog);
 
         }
 
@@ -82,11 +77,6 @@ namespace UnityEditor.Rendering.HighDefinition
             {
                 if ( addPrecomputedVelocity != null)
                     materialEditor.ShaderProperty(addPrecomputedVelocity, Styles.addPrecomputedVelocityText);
-            }
-            if ((m_Features & Features.VertexFog) != 0)
-            {
-                if ( vertexFog != null)
-                    materialEditor.ShaderProperty(vertexFog, Styles.vertexFogText);
             }
         }
     }

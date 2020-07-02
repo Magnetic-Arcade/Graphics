@@ -375,7 +375,7 @@ void EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, out float3
     }
 }
 
-void EvaluateVertexAtmosphericScattering(float3 positionWS, float3 V, out float4 vertexFog)
+void EvaluateAtmosphericScatteringPerVertex(float3 positionWS, float3 V, out float4 vertexFog)
 {
     // TODO: do not recompute this, but rather pass it directly.
     // Note1: remember the hacked value of 'posInput.positionWS'.
@@ -439,7 +439,7 @@ void EvaluateVertexAtmosphericScattering(float3 positionWS, float3 V, out float4
     vertexFog = float4(color.rgb, opacity.x);
 }
 
-void EvaluateVolumetricFog(PositionInputs posInput, float3 V, float4 globalFog, out float3 color, out float3 opacity)
+void AddVolumetricFog(PositionInputs posInput, float3 V, float4 globalFog, out float3 color, out float3 opacity)
 {
     // TODO: do not recompute this, but rather pass it directly.
     // Note1: remember the hacked value of 'posInput.positionWS'.
