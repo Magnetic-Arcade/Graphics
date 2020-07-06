@@ -95,6 +95,7 @@ namespace UnityEngine.Rendering.HighDefinition
         UpdateSkyAmbientProbe,
         PreRenderSky,
         RenderSky,
+        RenderCloudShadow,
         OpaqueAtmosphericScattering,
         InScatteredRadiancePrecomputation,
 

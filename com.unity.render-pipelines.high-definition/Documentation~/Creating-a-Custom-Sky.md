@@ -123,6 +123,14 @@ class NewSkyRenderer : SkyRenderer
     private static int m_RenderCubemapID = 0; // FragBaking
     private static int m_RenderFullscreenSkyID = 1; // FragRender
 
+    public NewSkyRenderer()
+    {
+        // These booleans tell the sky system if the sky needs to be recomputed
+        // when the sun light or the cloud layer changes
+        SupportDynamicSunLight = true;
+        SupportDynamicCloudLayer = true;
+    }
+
     public override void Build()
     {
         m_NewSkyMaterial = CoreUtils.CreateEngineMaterial(GetNewSkyShader());
@@ -158,6 +166,9 @@ class NewSkyRenderer : SkyRenderer
             m_PropertyBlock.SetTexture(_Cubemap, newSky.hdriSky.value);
             m_PropertyBlock.SetVector(_SkyParam, new Vector4(intensity, 0.0f, Mathf.Cos(phi), Mathf.Sin(phi)));
             m_PropertyBlock.SetMatrix(_PixelCoordToViewDirWS, builtinParams.pixelCoordToViewDirMatrix);
+
+            if (SupportDynamicCloudLayer)
+                CloudLayer.Apply(builtinParams.cloudLayer, m_NewSkyMaterial);
 
             CoreUtils.DrawFullScreen(builtinParams.commandBuffer, m_NewSkyMaterial, m_PropertyBlock, passID);
         }
