@@ -1,0 +1,80 @@
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/AtmosphereSky/AtmosphereSkyComputeCommon.hlsl"
+
+////////////////////////////////////////////////////////////
+// Sky View LUT
+////////////////////////////////////////////////////////////
+#pragma kernel RenderSkyViewLutCS THREADGROUP_SIZE=8
+#pragma multi_compile _ MULTISCATTERING_APPROX_ENABLED
+#pragma multi_compile _ SECOND_ATMOSPHERE_LIGHT_ENABLED
+#pragma multi_compile _ SOURCE_DISK_ENABLED
+#pragma enable_d3d11_debug_symbols
+
+//class FSkyPermutationMultiScatteringApprox : SHADER_PERMUTATION_BOOL("MULTISCATTERING_APPROX_ENABLED");
+//class FHighQualityMultiScatteringApprox : SHADER_PERMUTATION_BOOL("HIGHQUALITY_MULTISCATTERING_APPROX_ENABLED");
+//class FFastSky : SHADER_PERMUTATION_BOOL("FASTSKY_ENABLED");
+//class FFastAerialPespective : SHADER_PERMUTATION_BOOL("FASTAERIALPERSPECTIVE_ENABLED");
+//class FSourceDiskEnabled : SHADER_PERMUTATION_BOOL("SOURCE_DISK_ENABLED");
+//class FSecondAtmosphereLight : SHADER_PERMUTATION_BOOL("SECOND_ATMOSPHERE_LIGHT_ENABLED");
+//class FRenderSky : SHADER_PERMUTATION_BOOL("RENDERSKY_ENABLED");
+
+RWTexture2D<float3> SkyViewLutUAV;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
+{
+	float2 PixPos = float2(ThreadId.xy) + 0.5f;
+	float2 UV = PixPos * _SkyViewLutSizeAndInvSize.zw;
+
+	float3 WorldPos = GetCameraPlanetPos();
+
+	// For the sky view lut to work, and not be distorted, we need to transform the view and light directions
+	// into a referential with UP being perpendicular to the ground. And with origin at the planet center.
+
+	// This is the local referencial
+	float3 F = GetViewForwardDir();
+	float3 R = GetViewRightDir();
+	float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, F, R);
+
+	// This is the LUT camera height and position in the local referential
+	float ViewHeight = length(WorldPos);
+	WorldPos = float3(0.0, ViewHeight, 0.0);
+
+	// Get the view direction in this local referential
+	float3 WorldDir;
+	UvToSkyViewLutParams(WorldDir, ViewHeight, UV);
+
+	// And also both light source direction
+	float3 AtmosphereLightDirection0 = _AtmosphereLightDirection[0].xyz;
+	AtmosphereLightDirection0 = mul(AtmosphereLightDirection0, LocalReferencial);
+	float3 AtmosphereLightDirection1 = _AtmosphereLightDirection[1].xyz;
+	AtmosphereLightDirection1 = mul(AtmosphereLightDirection1, LocalReferencial);
+
+	// Move to top atmospehre
+	if (!MoveToTopAtmosphere(WorldPos, WorldDir, _TopRadiusKm))
+	{
+		// Ray is not intersecting the atmosphere
+		SkyViewLutUAV[int2(PixPos)] = 0.0f;
+		return;
+	}
+
+	SamplingSetup Sampling;
+	{
+		Sampling.VariableSampleCount = true;
+		Sampling.MinSampleCount = _FastSkySampleCountMin;
+		Sampling.MaxSampleCount = _FastSkySampleCountMax;
+		Sampling.DistanceToSampleCountMaxInv = _FastSkyDistanceToSampleCountMaxInv;
+	}
+
+	const bool Ground = false;
+	const float DeviceZ = UNITY_RAW_FAR_CLIP_VALUE;
+	const bool MieRayPhase = true;
+	const float AerialPespectiveViewDistanceScale = 1.0f;
+
+	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
+		float4(PixPos, 0.0f, 1.0f), WorldPos, WorldDir,
+		Ground, Sampling, DeviceZ, MieRayPhase,
+		AtmosphereLightDirection0, AtmosphereLightDirection1, _AtmosphereLightColor[0].rgb, _AtmosphereLightColor[1].rgb,
+		AerialPespectiveViewDistanceScale);
+
+	SkyViewLutUAV[int2(PixPos)] = ss.L;
+}

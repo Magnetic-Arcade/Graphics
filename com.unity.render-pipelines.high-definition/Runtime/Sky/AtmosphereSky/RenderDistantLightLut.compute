@@ -1,0 +1,102 @@
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/AtmosphereSky/AtmosphereSkyComputeCommon.hlsl"
+
+////////////////////////////////////////////////////////////
+// Distant sky light LUT
+////////////////////////////////////////////////////////////
+#pragma kernel RenderDistantSkyLightLutCS THREADGROUP_SIZE=8 SKYLIGHT_PASS=1
+#pragma multi_compile _ MULTISCATTERING_APPROX_ENABLED
+#pragma multi_compile _ SECOND_ATMOSPHERE_LIGHT_ENABLED
+#pragma enable_d3d11_debug_symbols
+
+RWTexture2D<float3> DistantSkyLightLutUAV;
+StructuredBuffer<float4> UniformSphereSamplesBuffer;
+//float4 AtmosphereLightDirection0;
+//float4 AtmosphereLightDirection1;
+//float4 AtmosphereLightColor0;
+//float4 AtmosphereLightColor1;
+float DistantSkyLightSampleAltitude;
+
+groupshared float3 GroupSkyLuminanceSamples[THREADGROUP_SIZE*THREADGROUP_SIZE];
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
+{
+	const int LinearIndex = ThreadId.y*THREADGROUP_SIZE + ThreadId.x;
+	float2 PixPos = float2(ThreadId.xy) + 0.5f;
+	float2 UV = PixPos * _SkyViewLutSizeAndInvSize.zw;
+
+	// As of today, we assume the world is alway at the top of the planet along Y.
+	// If it needs to change, we can transform all AtmosphereLightDirection into local basis onder the camera (it would then be view dependent).
+	// Overall this is fine because this sky lighting ambient is used for clouds using a dome and it won't be used in such sky views.
+	// IF needed later, we could compute illuminance for multiple position on earth in a lat/long texture
+	float3 SamplePos = float3(0, _BottomRadiusKm + DistantSkyLightSampleAltitude, 0);
+	float ViewHeight = length(SamplePos);
+
+	// We are going to trace 64 times using 64 parallel threads.
+	// Result are written in shared memory and prefix sum is applied to integrate the lighting in a single RGB value
+	// that can then be used to lit clouds in the sky mesh shader graph.
+
+	// Select a direction for this thread
+	const float3 SampleDir = UniformSphereSamplesBuffer[LinearIndex].xyz;
+
+	SamplingSetup Sampling;
+	{
+		Sampling.VariableSampleCount = false;
+		Sampling.SampleCountIni = 10.0f;
+	}
+	const bool Ground = false;
+	const float DeviceZ = UNITY_RAW_FAR_CLIP_VALUE;
+	const bool MieRayPhase = false;
+	const float AerialPespectiveViewDistanceScale = 1.0f;
+	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
+		float4(PixPos, 0.0f, 1.0f), SamplePos, SampleDir,
+		Ground, Sampling, DeviceZ, MieRayPhase,
+		_AtmosphereLightDirection[0].xyz, _AtmosphereLightDirection[1].xyz, _AtmosphereLightColor[0].rgb, _AtmosphereLightColor[1].rgb,
+		AerialPespectiveViewDistanceScale);
+
+	GroupSkyLuminanceSamples[LinearIndex] = ss.L * _SkyLuminanceFactor;
+
+	// Wait for all group threads to be done
+	GroupMemoryBarrierWithGroupSync();
+
+	// Now we manually apply prefix sum for a thread group size of 64
+#if SKYLIGHT_PASS==1 && THREADGROUP_SIZE!=8
+#error This shader only works for a thread group size of 8x8
+#endif
+
+	if (LinearIndex < 32)
+	{
+		GroupSkyLuminanceSamples[LinearIndex] += GroupSkyLuminanceSamples[LinearIndex + 32];
+	}
+	GroupMemoryBarrierWithGroupSync();
+	if (LinearIndex < 16)
+	{
+		GroupSkyLuminanceSamples[LinearIndex] += GroupSkyLuminanceSamples[LinearIndex + 16];
+	}
+	GroupMemoryBarrierWithGroupSync();
+
+	// The smallest wave size is 16 on Intel hardware. So now we can do simple math operations without group sync.
+
+	if (LinearIndex < 8)
+	{
+		GroupSkyLuminanceSamples[LinearIndex] += GroupSkyLuminanceSamples[LinearIndex + 8];
+	}
+	if (LinearIndex < 4)
+	{
+		GroupSkyLuminanceSamples[LinearIndex] += GroupSkyLuminanceSamples[LinearIndex + 4];
+	}
+	if (LinearIndex < 2)
+	{
+		GroupSkyLuminanceSamples[LinearIndex] += GroupSkyLuminanceSamples[LinearIndex + 2];
+	}
+	if (LinearIndex < 1)
+	{
+		const float3 AccumulatedLuminanceSamples = GroupSkyLuminanceSamples[LinearIndex] + GroupSkyLuminanceSamples[LinearIndex + 1];
+		const float SamplerSolidAngle = 4.0f * PI / float(THREADGROUP_SIZE * THREADGROUP_SIZE);
+		const float3 Illuminance = AccumulatedLuminanceSamples * SamplerSolidAngle;
+		const float3 UniformPhaseFunction = 1.0f / (4.0f * PI);
+		DistantSkyLightLutUAV[int2(PixPos)] = Illuminance * UniformPhaseFunction; // Luminance assuming scattering in a medium with a uniform phase function.
+		// Since this is ran once per scene, we do not have access to view data (VIEWDATA_AVAILABLE==0).
+		// So this buffer is not pre-exposed today.
+	}
+}

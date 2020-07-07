@@ -9,6 +9,7 @@
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/VolumetricLighting/VBuffer.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/PhysicallyBasedSky/PhysicallyBasedSkyCommon.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/AtmosphereSky/AtmosphereSkyCommon.hlsl"
 
 #ifdef DEBUG_DISPLAY
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Debug/DebugDisplay.hlsl"
@@ -326,7 +327,7 @@ void EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, out float3
 
     // Sky pass already applies atmospheric scattering to the far plane.
     // This pass only handles geometry.
-    if (_PBRFogEnabled && (posInput.deviceDepth != UNITY_RAW_FAR_CLIP_VALUE))
+    if (_PBRFogEnabled == 1 && (posInput.deviceDepth != UNITY_RAW_FAR_CLIP_VALUE))
     {
         float3 skyColor = 0, skyOpacity = 0;
 
@@ -373,9 +374,31 @@ void EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, out float3
         CompositeOver(color, opacity, skyColor, skyOpacity, color, opacity);
 #endif
     }
+    else if (_PBRFogEnabled == 2 && (posInput.deviceDepth != UNITY_RAW_FAR_CLIP_VALUE))
+    {
+        const float3 skyPos = posInput.positionWS * M_TO_SKY_UNIT;
+        const float3 cameraPos = _SkyWorldCameraOrigin.xyz * M_TO_SKY_UNIT;
+        float4 positionNDC = float4(posInput.positionNDC.xy, posInput.deviceDepth, 1.0);
+        float4 aerialLuminance = GetAerialPerspectiveLuminanceTransmittance(
+            positionNDC, skyPos, cameraPos,
+            _CameraAerialPerspectiveVolume, sampler_CameraAerialPerspectiveVolume,
+            _AtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
+            _AtmosphereCameraAerialPerspectiveVolumeDepthResolution,
+            _AtmosphereAerialPerspectiveStartDepthKm,
+            _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
+            _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
+            1.0f);
+
+        aerialLuminance.rgb *= _AtmosphereSkyLuminanceFactor * GetCurrentExposureMultiplier();
+
+        // Apply any other fog OVER aerial perspective because AP is usually optically thiner.
+        color.rgb = color.rgb + aerialLuminance.rgb * (1 - opacity);
+        // And combine both transmittance.
+        opacity   = opacity + (1 - opacity) * (1 - aerialLuminance.a);
+    }
 }
 
-void EvaluateAtmosphericScatteringPerVertex(float3 positionWS, float3 V, out float4 vertexFog)
+void EvaluateAtmosphericScatteringPerVertex(float4 positionCS, float3 positionWS, float3 V, out float4 vertexFog)
 {
     // TODO: do not recompute this, but rather pass it directly.
     // Note1: remember the hacked value of 'posInput.positionWS'.
@@ -423,7 +446,7 @@ void EvaluateAtmosphericScatteringPerVertex(float3 positionWS, float3 V, out flo
 
     // Sky pass already applies atmospheric scattering to the far plane.
     // This pass only handles geometry.
-    if (_PBRFogEnabled)
+    if (_PBRFogEnabled == 1)
     {
         float3 skyColor = 0, skyOpacity = 0;
 
@@ -434,6 +457,42 @@ void EvaluateAtmosphericScatteringPerVertex(float3 positionWS, float3 V, out flo
         skyColor *= _IntensityMultiplier * GetCurrentExposureMultiplier();
 
         CompositeOver(color, opacity, skyColor, skyOpacity, color, opacity);
+    }
+    else if (_PBRFogEnabled == 2)
+    {
+        const float3 skyPos = positionWS * M_TO_SKY_UNIT;
+        const float3 cameraPos = _SkyWorldCameraOrigin.xyz * M_TO_SKY_UNIT;
+
+        float4 positionNDC = positionCS;
+        {
+        #if UNITY_UV_STARTS_AT_TOP
+            // Our world space, view space, screen space and NDC space are Y-up.
+            // Our clip space is flipped upside-down due to poor legacy Unity design.
+            // The flip is baked into the projection matrix, so we only have to flip
+            // manually when going from CS to NDC and back.
+            positionNDC.y = -positionNDC.y;
+        #endif
+
+            positionNDC *= rcp(positionNDC.w);
+            positionNDC.xy = positionNDC.xy * 0.5 + 0.5;
+        }
+
+        float4 aerialLuminance = GetAerialPerspectiveLuminanceTransmittance(
+            positionNDC, skyPos, cameraPos,
+            _CameraAerialPerspectiveVolume, sampler_CameraAerialPerspectiveVolume,
+            _AtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
+            _AtmosphereCameraAerialPerspectiveVolumeDepthResolution,
+            _AtmosphereAerialPerspectiveStartDepthKm,
+            _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
+            _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
+            1.0f);
+
+        aerialLuminance.rgb *= _AtmosphereSkyLuminanceFactor * GetCurrentExposureMultiplier();
+
+        // Apply any other fog OVER aerial perspective because AP is usually optically thiner.
+        color.rgb = color.rgb + aerialLuminance.rgb * (1 - opacity);
+        // And combine both transmittance.
+        opacity   = opacity + (1 - opacity) * (1 - aerialLuminance.a);
     }
 
     vertexFog = float4(color.rgb, opacity.x);
@@ -472,9 +531,8 @@ void AddVolumetricFog(PositionInputs posInput, float3 V, float4 globalFog, out f
             expFogStart = _VBufferLastSliceDist;
         }
 
-        color = volFog.rgb + (1 - volFog.a) * globalFog.rgb; // Already pre-exposed
-        //opacity = volFog.a * globalFog.a;
-        opacity = volFog.a + (1 - volFog.a) * globalFog.a;
+        color   = volFog.rgb + (1 - volFog.a) * globalFog.rgb; // Already pre-exposed
+        opacity = volFog.a   + (1 - volFog.a) * globalFog.a;
     }
 }
 

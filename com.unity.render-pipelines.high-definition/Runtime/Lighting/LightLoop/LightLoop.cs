@@ -1302,13 +1302,26 @@ namespace UnityEngine.Rendering.HighDefinition
 
                 if (ShaderConfig.s_PrecomputedAtmosphericAttenuation != 0)
                 {
-                    var skySettings = hdCamera.volumeStack.GetComponent<PhysicallyBasedSky>();
+                    var skyEnv = hdCamera.volumeStack.GetComponent<VisualEnvironment>();
+                    if (skyEnv.skyType.value == (int) SkyType.PhysicallyBased)
+                    {
+                        var skySettings = hdCamera.volumeStack.GetComponent<PhysicallyBasedSky>();
 
-                    // Ignores distance (at infinity).
-                    Vector3 transm = EvaluateAtmosphericAttenuation(skySettings, - lightData.forward, hdCamera.camera.transform.position);
-                    lightData.color.x *= transm.x;
-                    lightData.color.y *= transm.y;
-                    lightData.color.z *= transm.z;
+                        // Ignores distance (at infinity).
+                        Vector3 transm = EvaluateAtmosphericAttenuation(skySettings, - lightData.forward, hdCamera.camera.transform.position);
+                        lightData.color.x *= transm.x;
+                        lightData.color.y *= transm.y;
+                        lightData.color.z *= transm.z;
+                    }
+                    else if (skyEnv.skyType.value == (int) SkyType.Atmosphere)
+                    {
+                        var skySettings = hdCamera.volumeStack.GetComponent<AtmosphereSky>();
+                        var parameters = skySettings.GetInternalParams();
+                        var transm = parameters.GetTransmittanceAtGroundLevel(-lightData.forward);
+                        lightData.color.x *= transm.x;
+                        lightData.color.y *= transm.y;
+                        lightData.color.z *= transm.z;
+                    }
                 }
             }
 
@@ -2257,7 +2270,8 @@ namespace UnityEngine.Rendering.HighDefinition
             var visualEnvironment = hdCamera.volumeStack.GetComponent<VisualEnvironment>();
             Debug.Assert(visualEnvironment != null);
 
-            bool isPbrSkyActive = visualEnvironment.skyType.value == (int)SkyType.PhysicallyBased;
+            bool isPbrSkyActive = visualEnvironment.skyType.value == (int)SkyType.PhysicallyBased ||
+                                  visualEnvironment.skyType.value == (int)SkyType.Atmosphere;
 
             var hdShadowSettings = hdCamera.volumeStack.GetComponent<HDShadowSettings>();
 

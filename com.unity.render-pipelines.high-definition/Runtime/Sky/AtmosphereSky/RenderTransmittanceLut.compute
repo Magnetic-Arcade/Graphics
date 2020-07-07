@@ -1,0 +1,47 @@
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/AtmosphereSky/AtmosphereSkyComputeCommon.hlsl"
+
+////////////////////////////////////////////////////////////
+// Transmittance LUT
+////////////////////////////////////////////////////////////
+#pragma kernel RenderTransmittanceLutCS THREADGROUP_SIZE=8 WHITE_TRANSMITTANCE=1 TRANSMITTANCE_PASS=1
+//#pragma enable_d3d11_debug_symbols
+
+RWTexture2D<float3> TransmittanceLutUAV;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void RenderTransmittanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
+{
+	float2 PixPos = float2(ThreadId.xy) + 0.5f;
+
+	// Compute camera position from LUT coords
+	float2 UV = (PixPos) * _TransmittanceLutSizeAndInvSize.zw;
+	float ViewHeight;
+	float ViewZenithCosAngle;
+	UvToLutTransmittanceParams(ViewHeight, ViewZenithCosAngle, UV);
+
+	// A few extra needed constants
+	float3 WorldPos = float3(0.0f, ViewHeight, 0.0f);
+	float3 WorldDir = float3(0.0f, ViewZenithCosAngle, sqrt(1.0f - ViewZenithCosAngle * ViewZenithCosAngle));
+
+	SamplingSetup Sampling;
+	{
+		Sampling.VariableSampleCount = false;
+		Sampling.SampleCountIni = _TransmittanceSampleCount;
+	}
+
+	const bool Ground = false;
+	const float DeviceZ = UNITY_RAW_FAR_CLIP_VALUE;
+	const bool MieRayPhase = false;
+	const float3 NullLightDirection = float3(0.0f, 1.0f, 0.0f);
+	const float3 NullLightIlluminance = float3(0.0f, 0.0f, 0.0f);
+	const float AerialPespectiveViewDistanceScale = 1.0f;
+
+	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
+		float4(PixPos,0.0f,1.0f), WorldPos, WorldDir,
+		Ground, Sampling, DeviceZ, MieRayPhase,
+		NullLightDirection, NullLightDirection, NullLightIlluminance, NullLightIlluminance,
+		AerialPespectiveViewDistanceScale);
+
+	float3 transmittance = exp(-ss.OpticalDepth);
+	TransmittanceLutUAV[int2(PixPos)] = transmittance;
+}

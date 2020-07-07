@@ -98,7 +98,9 @@ namespace UnityEngine.Rendering.HighDefinition
             var visualEnv = hdCamera.volumeStack.GetComponent<VisualEnvironment>();
             // For now PBR fog (coming from the PBR sky) is disabled until we improve it
             // return false;
-            return visualEnv.skyType.value == (int)SkyType.PhysicallyBased && fog.addPbrSkyScattering.value &&
+            return (visualEnv.skyType.value == (int)SkyType.PhysicallyBased ||
+                    visualEnv.skyType.value == (int)SkyType.Atmosphere) &&
+                   fog.addPbrSkyScattering.value &&
                    hdCamera.frameSettings.IsEnabled(FrameSettingsField.AtmosphericScattering);
         }
 
@@ -138,11 +140,12 @@ namespace UnityEngine.Rendering.HighDefinition
 
         void UpdateShaderVariablesGlobalCBFogParameters(ref ShaderVariablesGlobal cb, HDCamera hdCamera)
         {
+            var visualEnv = hdCamera.volumeStack.GetComponent<VisualEnvironment>();
             bool enableVolumetrics = enableVolumetricFog.value && hdCamera.frameSettings.IsEnabled(FrameSettingsField.Volumetrics);
             bool enablePBRFog = IsPBRFogEnabled(hdCamera);
 
             cb._FogEnabled = 1;
-            cb._PBRFogEnabled = enablePBRFog ? 1 : 0;
+            cb._PBRFogEnabled = enablePBRFog ? visualEnv.skyType.value == (int)SkyType.Atmosphere ? 2 : 1 : 0;
             cb._EnableVolumetricFog = enableVolumetrics ? 1 : 0;
             cb._MaxFogDistance = maxFogDistance.value;
 

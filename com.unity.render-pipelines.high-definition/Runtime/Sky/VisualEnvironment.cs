@@ -34,6 +34,8 @@ namespace UnityEngine.Rendering.HighDefinition
         Gradient = 3,
         /// <summary>Physically Based Sky Unique ID.</summary>
         PhysicallyBased = 4,
+        /// <summary>Physically Based Sky Unique ID.</summary>
+        Atmosphere = 5,
     }
 
     /// <summary>

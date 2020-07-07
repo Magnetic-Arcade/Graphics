@@ -181,8 +181,13 @@ VaryingsMeshType VertMesh(AttributesMesh input)
         #endif
         output.vertexFog = float4(0,0,0,1);
 #if !defined(_FORCE_PIXEL_FOG)
+#if defined(TESSELLATION_ON)
+        float4 positionCS = TransformWorldToHClip(positionRWS);
+#else
+        float4 positionCS = output.positionCS;
+#endif
         float3 V = GetWorldSpaceNormalizeViewDir(positionRWS);
-        EvaluateAtmosphericScatteringPerVertex(positionRWS, GetWorldSpaceNormalizeViewDir(positionRWS), output.vertexFog);
+        EvaluateAtmosphericScatteringPerVertex(positionCS, positionRWS, V, output.vertexFog);
 #endif
 #endif
 

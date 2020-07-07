@@ -1,4 +1,4 @@
-Shader "Hidden/HDRP/Sky/PbrSky"
+﻿Shader "Hidden/HDRP/Sky/AtmosphereSky"
 {
     HLSLINCLUDE
 
@@ -13,41 +13,32 @@ Shader "Hidden/HDRP/Sky/PbrSky"
     #pragma multi_compile_local _ USE_CLOUD_MOTION
     #pragma multi_compile_local _ RENDER_BAKING
 
+    #define FASTSKY_ENABLED 1
+    #define RENDERSKY_ENABLED 1
+
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
     #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
     #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/LightDefinition.cs.hlsl"
     #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
-    #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/PhysicallyBasedSky/PhysicallyBasedSkyCommon.hlsl"
-    #define _PBRFogEnabled false
+    #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/AtmosphereSky/AtmosphereSkyComputeCommon.hlsl"
     #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/SkyUtils.hlsl"
     #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/CloudLayer/CloudLayer.hlsl"
     #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/AtmosphericScattering/AtmosphericScattering.hlsl"
     #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Lighting/LightLoop/CookieSampling.hlsl"
 
-    int _HasGroundAlbedoTexture;    // bool...
-    int _HasGroundEmissionTexture;  // bool...
-    int _HasSpaceEmissionTexture;   // bool...
     int _RenderSunDisk;             // bool...
-
-    float _GroundEmissionMultiplier;
-    float _SpaceEmissionMultiplier;
+    float _Intensity;
 
     // Sky framework does not set up global shader variables (even per-view ones),
     // so they can contain garbage. It's very difficult to not include them, however,
     // since the sky framework includes them internally in many header files.
     // Just don't use them. Ever.
     float3   _WorldSpaceCameraPos1;
+    #undef _WorldSpaceCameraPos
+    #define _WorldSpaceCameraPos _WorldSpaceCameraPos1
     float4x4 _ViewMatrix1;
     #undef UNITY_MATRIX_V
     #define UNITY_MATRIX_V _ViewMatrix1
-
-    // 3x3, but Unity can only set 4x4...
-    float4x4 _PlanetRotation;
-    float4x4 _SpaceRotation;
-
-    TEXTURECUBE(_GroundAlbedoTexture);
-    TEXTURECUBE(_GroundEmissionTexture);
-    TEXTURECUBE(_SpaceEmissionTexture);
 
     struct Attributes
     {
@@ -70,33 +61,64 @@ Shader "Hidden/HDRP/Sky/PbrSky"
         return output;
     }
 
+    const static float Max10BitsFloat = 64512.0f;
+
+    float4 PrepareOutput(float3 Luminance, float3 Transmittance = float3(1.0f, 1.0f, 1.0f))
+    {
+        const float GreyScaleTransmittance = dot(Transmittance, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
+        return float4(min(Luminance, Max10BitsFloat.xxx), GreyScaleTransmittance);
+    }
+
+    float3 GetCameraPlanetPos1()
+    {
+        return (_WorldSpaceCameraPos1 - _SkyPlanetCenterAndViewHeight.xyz) * M_TO_SKY_UNIT;
+    }
+
     float4 RenderSky(Varyings input)
     {
         const float R = _PlanetaryRadius;
 
         // TODO: Not sure it's possible to precompute cam rel pos since variables
         // in the two constant buffers may be set at a different frequency?
-        const float3 O = _WorldSpaceCameraPos1 - _PlanetCenterPosition.xyz;
+        const float3 O = GetCameraPlanetPos();
         const float3 V = GetSkyViewDirWS(input.positionCS.xy);
 
         bool renderSunDisk = _RenderSunDisk != 0;
 
-        float3 N; float r; // These params correspond to the entry point
-        float tEntry = IntersectAtmosphere(O, V, N, r).x;
-        float tExit  = IntersectAtmosphere(O, V, N, r).y;
+        float4 OutLuminance = 0;
 
-        float NdotV  = dot(N, V);
-        float cosChi = -NdotV;
-        float cosHor = ComputeCosineOfHorizonAngle(r);
+        float2 PixPos = input.positionCS.xy;
+        float2 UvBuffer = PixPos * _ScreenSize.zw;	// Uv for depth buffer read (size can be larger than viewport)
 
-        bool rayIntersectsAtmosphere = (tEntry >= 0);
-        bool lookAboveHorizon        = (cosChi >= cosHor);
+        float3 WorldPos = O;
+        float3 WorldDir = V;
 
-        float  tFrag    = FLT_INF;
-        float3 radiance = 0;
-
+        // Get the light disk luminance to draw
+        float3 PreExposedL = 0;
+        float3 LuminanceScale = 1.0f;
+        //float DeviceZ = LookupDeviceZ(UvBuffer);
         if (renderSunDisk)
         {
+            LuminanceScale = _SkyLuminanceFactor;
+    //         PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 0);
+    // #if SECOND_ATMOSPHERE_LIGHT_ENABLED
+    //         PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 1);
+    // #endif
+
+    // #if RENDERSKY_ENABLED == 0
+    //         // We should not render the sky and the current pixels are at far depth, so simply early exit.
+    //         // We enable depth bound when supported to not have to even process those pixels.
+    //         OutLuminance = PrepareOutput(float3(0.0f, 0.0f, 0.0f), float3(1.0f, 1.0f, 1.0f));
+
+    //         //Now the sky pass can ignore the pixel with depth == far but it will need to alpha clip because not all RHI backend support depthbound tests.
+    //         // And the depthtest is already setup to avoid writing all the pixel closer than to the camera than the start distance (very good optimisation).
+    //         // Since this shader does not write to depth or stencil it should still benefit from EArlyZ even with the clip (See AMD depth-in-depth documentation)
+    //         clip(-1.0f);
+    //         return OutLuminance;
+    // #endif
+
+            float tFrag = FLT_INF;
+
             // Intersect and shade emissive celestial bodies.
             // Unfortunately, they don't write depth.
             for (uint i = 0; i < _DirectionalLightCount; i++)
@@ -107,7 +129,7 @@ Shader "Hidden/HDRP/Sky/PbrSky"
                 bool interactsWithSky = asint(light.distanceFromCamera) >= 0;
 
                 // Celestial body must be outside the atmosphere (request from Pierre D).
-                float lightDist = max(light.distanceFromCamera, tExit);
+                float lightDist = light.distanceFromCamera;//max(light.distanceFromCamera, tExit);
 
                 if (interactsWithSky && asint(light.angularDiameter) != 0 && lightDist < tFrag)
                 {
@@ -156,80 +178,101 @@ Shader "Hidden/HDRP/Sky/PbrSky"
                             scale *= pow(w, light.flareFalloff);
                         }
 
-                        radiance += color * scale;
+                        PreExposedL += color * scale;
                     }
                 }
             }
         }
 
-        if (rayIntersectsAtmosphere && !lookAboveHorizon) // See the ground?
+        float ViewHeight = length(WorldPos);
+
+    #if FASTSKY_ENABLED && RENDERSKY_ENABLED
+        //
+        if (ViewHeight < _TopRadiusKm /*&& DeviceZ == FarDepthValue*/)
         {
-            float tGround = tEntry + IntersectSphere(R, cosChi, r).x;
+            float2 UV;
 
-            if (tGround < tFrag)
-            {
-                // Closest so far.
-                // Make it negative to communicate to EvaluatePbrAtmosphere that we intersected the ground.
-                tFrag = -tGround;
+            // The referencial used to build the Sky View lut
+            float3 F = GetViewForwardDir();
+            float3 R = GetViewRightDir();
+            float3x3 LocalReferencial = GetSkyViewLutReferential(WorldPos, F, R);
 
-                radiance = 0;
+            // Input vectors expressed in this referencial: Up is always Z. Also note that ViewHeight is unchanged in this referencial.
+            float3 WorldPosLocal = float3(0.0, ViewHeight, 0.0);
+            float3 UpVectorLocal = float3(0.0, 1.0, 0.0);
+            float3 WorldDirLocal = mul(-V, LocalReferencial);
 
-                float3 gP = O + tGround * -V;
-                float3 gN = normalize(gP);
+            // Now evaluate inputs in the referential.
+            float ViewZenithCosAngle = dot(WorldDirLocal, UpVectorLocal);
+            bool IntersectGround = RaySphereIntersectNearest(WorldPosLocal, WorldDirLocal, float3(0, 0, 0), _BottomRadiusKm) >= 0.0f;
 
-                if (_HasGroundEmissionTexture)
-                {
-                    float4 ts = SAMPLE_TEXTURECUBE(_GroundEmissionTexture, s_trilinear_clamp_sampler, mul(gN, (float3x3)_PlanetRotation));
-                    radiance += _GroundEmissionMultiplier * ts.rgb;
-                }
+            SkyViewLutParamsToUv(IntersectGround, ViewZenithCosAngle, WorldDirLocal, ViewHeight, _BottomRadiusKm, _SkyViewLutSizeAndInvSize, UV);
+            float3 SkyLuminance = _SkyViewLutTexture.SampleLevel(sampler_SkyViewLutTexture, UV, 0).rgb;
 
-                float3 albedo = _GroundAlbedo.xyz;
-
-                if (_HasGroundAlbedoTexture)
-                {
-                    albedo *= SAMPLE_TEXTURECUBE(_GroundAlbedoTexture, s_trilinear_clamp_sampler, mul(gN, (float3x3)_PlanetRotation)).rgb;
-                }
-
-                float3 gBrdf = INV_PI * albedo;
-
-                // Shade the ground.
-                for (uint i = 0; i < _DirectionalLightCount; i++)
-                {
-                    DirectionalLightData light = _DirectionalLightDatas[i];
-
-                    // Use scalar or integer cores (more efficient).
-                    bool interactsWithSky = asint(light.distanceFromCamera) >= 0;
-
-                    float3 L          = -light.forward.xyz;
-                    float3 intensity  = light.color.rgb;
-                    float3 irradiance = SampleGroundIrradianceTexture(dot(gN, L));
-
-                    radiance += gBrdf * (irradiance * intensity); // Scale from unit intensity to light's intensity
-                }
-            }
+            PreExposedL += SkyLuminance * LuminanceScale;
+            OutLuminance = PrepareOutput(PreExposedL);
         }
-        else if (tFrag == FLT_INF) // See the stars?
-        {
-            if (_HasSpaceEmissionTexture)
-            {
-                // V points towards the camera.
-                float4 ts = SAMPLE_TEXTURECUBE(_SpaceEmissionTexture, s_trilinear_clamp_sampler, mul(-V, (float3x3)_SpaceRotation));
-                radiance += _SpaceEmissionMultiplier * ts.rgb;
-            }
-        }
+        //
+    #elif FASTAERIALPERSPECTIVE_ENABLED
+        // const float OneOverPreExposure = 1.0f;
 
-        float3 skyColor = 0, skyOpacity = 0;
+        // float3 DepthBufferWorldPos = GetScreenWorldPos(SVPos, DeviceZ).xyz;
+        // float4 NDCPosition = mul(float4(DepthBufferWorldPos.xyz, 1), View.WorldToClip);
 
-        if (rayIntersectsAtmosphere)
-        {
-            float distAlongRay = tFrag;
-            EvaluatePbrAtmosphere(_WorldSpaceCameraPos1, V, distAlongRay, renderSunDisk, skyColor, skyOpacity);
+        // float4 AP = GetAerialPerspectiveLuminanceTransmittance(
+        //     NDCPosition, DepthBufferWorldPos * M_TO_SKY_UNIT, GetCameraWorldPos() * M_TO_SKY_UNIT,
+        //     CameraAerialPerspectiveVolumeTexture, CameraAerialPerspectiveVolumeTextureSampler,
+        //     _AtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
+        //     _AtmosphereCameraAerialPerspectiveVolumeDepthResolution,
+        //     AerialPerspectiveStartDepthKm,
+        //     _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
+        //     _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
+        //     OneOverPreExposure);
+
+        // PreExposedL += AP.rgb * LuminanceScale;
+        // float Transmittance = AP.a;
+
+        // OutLuminance = PrepareOutput(PreExposedL, float3(Transmittance, Transmittance, Transmittance));
+        //
+    #else // FASTAERIALPERSPECTIVE_ENABLED
+
+        // // Move to top atmosphere as the starting point for ray marching.
+        // // This is critical to be after the above to not disrupt above atmosphere tests and voxel selection.
+        // if (!MoveToTopAtmosphere(WorldPos, WorldDir, _TopRadiusKm))
+        // {
+        //     // Ray is not intersecting the atmosphere
+        //     OutLuminance = PrepareOutput(PreExposedL);
+        // }
+        // else
+        // {
+        //     // Apply the start depth offset after moving to the top of atmosphere for consistency (and to avoid wrong out-of-atmosphere test resulting in black pixels).
+        //     WorldPos += WorldDir * _AtmosphereAerialPerspectiveStartDepthKm;
+
+        //     SamplingSetup Sampling;
+        //     {
+        //         Sampling.VariableSampleCount = true;
+        //         Sampling.MinSampleCount = _SampleCountMin;
+        //         Sampling.MaxSampleCount = _SampleCountMax;
+        //         Sampling.DistanceToSampleCountMaxInv = _DistanceToSampleCountMaxInv;
+        //     }
+        //     const bool Ground = false;
+        //     const bool MieRayPhase = true;
+        //     const float AerialPespectiveViewDistanceScale = 1.0f /* DeviceZ == FarDepthValue ? 1.0f : _AerialPespectiveViewDistanceScale*/;
+        //     SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
+        //         input.positionCS, WorldPos, WorldDir,
+        //         Ground, Sampling, /*DeviceZ*/FLT_INF, MieRayPhase,
+        //         _AtmosphereLightDirection[0].xyz, _AtmosphereLightDirection[1].xyz, _AtmosphereLightColor[0].rgb, _AtmosphereLightColor[1].rgb,
+        //         AerialPespectiveViewDistanceScale);
+
+        //     PreExposedL += ss.L * LuminanceScale;
+
+        //     OutLuminance = PrepareOutput(PreExposedL, ss.Transmittance);
         }
+    #endif
 
         // Hacky way to boost the clouds for PBR sky
-        skyColor += ApplyCloudLayer(-V, 0);
-        skyColor += radiance * (1 - skyOpacity);
-        skyColor *= _IntensityMultiplier;
+        OutLuminance.rgb += ApplyCloudLayer(-V, 0);
+        OutLuminance *= _Intensity;
 
         #if SHADEROPTIONS_VERTEX_FOG == 1 && !defined(RENDER_BAKING)
             PositionInputs posInput = GetPositionInput(input.positionCS.xy, _ScreenSize.zw);
@@ -237,10 +280,11 @@ Shader "Hidden/HDRP/Sky/PbrSky"
             float3 color;
             float3 opacity;
             EvaluateAtmosphericScattering(posInput, V, color, opacity); // Premultiplied alpha
-            CompositeOver(color, opacity, skyColor, skyOpacity, skyColor, skyOpacity);
+            // CompositeOver(color, opacity, skyColor, skyOpacity, skyColor, skyOpacity);
+            OutLuminance.rgb = OutLuminance.rgb * (1 - opacity) + color;
         #endif
 
-        return float4(skyColor, 1.0);
+        return float4(OutLuminance.xyz, 1.0);
     }
 
     float4 FragBaking(Varyings input) : SV_Target

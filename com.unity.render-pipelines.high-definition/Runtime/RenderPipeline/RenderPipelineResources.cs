@@ -146,6 +146,19 @@ namespace UnityEngine.Rendering.HighDefinition
             [Reload("Runtime/Sky/PhysicallyBasedSky/PhysicallyBasedSky.shader")]
             public Shader        physicallyBasedSkyPS;
 
+            [Reload("Runtime/Sky/AtmosphereSky/RenderAerialVolume.compute")]
+            public ComputeShader atomosphereSkyRenderAerialVolumeCS;
+            [Reload("Runtime/Sky/AtmosphereSky/RenderDistantLightLut.compute")]
+            public ComputeShader atomosphereSkyRenderDistantLightLutCS;
+            [Reload("Runtime/Sky/AtmosphereSky/RenderMultiScatteredLuminanceLut.compute")]
+            public ComputeShader atomosphereSkyRenderMultiScatteredLuminanceLutCS;
+            [Reload("Runtime/Sky/AtmosphereSky/RenderViewLut.compute")]
+            public ComputeShader atomosphereSkyRenderViewLutCS;
+            [Reload("Runtime/Sky/AtmosphereSky/RenderTransmittanceLut.compute")]
+            public ComputeShader atomosphereSkyRenderTransmittanceLutCS;
+            [Reload("Runtime/Sky/AtmosphereSky/AtmosphereSky.shader")]
+            public Shader atmosphereSkyPS;
+
             // Material
             [Reload("Runtime/Material/PreIntegratedFGD/PreIntegratedFGD_GGXDisneyDiffuse.shader")]
             public Shader preIntegratedFGD_GGXDisneyDiffusePS;
