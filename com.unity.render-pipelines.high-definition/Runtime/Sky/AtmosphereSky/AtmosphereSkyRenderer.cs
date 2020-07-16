@@ -40,6 +40,7 @@ namespace UnityEngine.Rendering.HighDefinition
         static MaterialPropertyBlock s_AtmosphereSkyMaterialProperties;
 
         int m_LastParamHash;
+        int m_LastUpdateFrame;
 
         const float k_KmToM = 1000.0f;
         const float k_MToKm = (1.0f / k_KmToM);
@@ -50,6 +51,7 @@ namespace UnityEngine.Rendering.HighDefinition
             var hdrpResources = HDRenderPipeline.defaultAsset.renderPipelineResources;
 
             m_Settings = ScriptableObject.CreateInstance<AtmosphereSkySettingsAsset>();
+            m_LastParamHash = m_LastUpdateFrame = 0;
 
             m_RenderTransmittanceLutCS = hdrpResources.shaders.atomosphereSkyRenderTransmittanceLutCS;
             m_RenderMultiScatteredLuminanceLutCS = hdrpResources.shaders.atomosphereSkyRenderMultiScatteredLuminanceLutCS;
@@ -130,6 +132,8 @@ namespace UnityEngine.Rendering.HighDefinition
 
         public override void Cleanup()
         {
+            m_LastParamHash = m_LastUpdateFrame = 0;
+
             RTHandles.Release(m_TransmittanceLutTexture); m_TransmittanceLutTexture = null;
             RTHandles.Release(m_MultiScatteredLuminanceLutTexture); m_MultiScatteredLuminanceLutTexture = null;
             RTHandles.Release(m_DistantSkyLightLutTexture); m_DistantSkyLightLutTexture = null;
@@ -141,41 +145,45 @@ namespace UnityEngine.Rendering.HighDefinition
 
         protected override bool Update(BuiltinSkyParameters builtinParams)
         {
+            if (builtinParams.frameIndex <= m_LastUpdateFrame)
+                return false;
+
+            m_LastUpdateFrame = builtinParams.frameIndex;
+
             var atmosphereSky = builtinParams.skySettings as AtmosphereSky;
 
-            CoreUtils.SetKeyword(builtinParams.commandBuffer, "_SUPPORT_ATMOSPHERE", m_Settings.supportAtmosphere);
-            CoreUtils.SetKeyword(builtinParams.commandBuffer, "_SUPPORT_ATMOSPHERE_AFFECTS_HEIGHFOG", m_Settings.supportAtmosphereAffectsHeightFog);
-
-            bool changed = false;
+            // CoreUtils.SetKeyword(builtinParams.commandBuffer, "_SUPPORT_ATMOSPHERE", m_Settings.supportAtmosphere);
+            // CoreUtils.SetKeyword(builtinParams.commandBuffer, "_SUPPORT_ATMOSPHERE_AFFECTS_HEIGHFOG", m_Settings.supportAtmosphereAffectsHeightFog);
 
             var hashCode = atmosphereSky.GetHashCode();
             if (hashCode != m_LastParamHash)
             {
                 m_LastParamHash = hashCode;
                 atmosphereSky.UpdateInternalParams(new Vector3(0, atmosphereSky.seaLevel.value, 0));
-                changed = true;
-            }
 
-            UpdateGlobalConstantBuffer(builtinParams.commandBuffer, builtinParams);
-            UpdateInternalConstantBuffer(builtinParams.commandBuffer, builtinParams);
+                UpdateGlobalConstantBuffer(builtinParams.commandBuffer, builtinParams);
+                UpdateInternalConstantBuffer(builtinParams.commandBuffer, builtinParams);
 
-            if (changed)
-            {
                 RenderAtmosphereLookUpTables(builtinParams);
+
+                // If the sky is realtime, an upcoming update will update the sky lighting. Otherwise we need to force an update.
+                return builtinParams.skySettings.updateMode != EnvironmentUpdateMode.Realtime;
             }
+            else
+            {
+                UpdateGlobalConstantBuffer(builtinParams.commandBuffer, builtinParams);
+                UpdateInternalConstantBuffer(builtinParams.commandBuffer, builtinParams);
 
-            builtinParams.commandBuffer.SetGlobalTexture(s_TransmittanceLutTexture, m_TransmittanceLutTexture);
-            builtinParams.commandBuffer.SetGlobalTexture(s_MultiScatteredLuminanceLutTexture, m_MultiScatteredLuminanceLutTexture);
-            builtinParams.commandBuffer.SetGlobalTexture(s_DistantSkyLightLutTexture, m_DistantSkyLightLutTexture);
+                builtinParams.commandBuffer.SetGlobalTexture(s_TransmittanceLutTexture, m_TransmittanceLutTexture);
+                builtinParams.commandBuffer.SetGlobalTexture(s_MultiScatteredLuminanceLutTexture, m_MultiScatteredLuminanceLutTexture);
+                builtinParams.commandBuffer.SetGlobalTexture(s_DistantSkyLightLutTexture, m_DistantSkyLightLutTexture);
 
-            return changed;
+                return false;
+            }
         }
 
         public override void PreRenderSky(BuiltinSkyParameters builtinParams, bool renderForCubemap, bool renderSunDisk)
         {
-            if (renderForCubemap)
-                return;
-
             RenderAtmosphereViewDependentLookUpTables(builtinParams, false, renderSunDisk);
 
             builtinParams.commandBuffer.SetGlobalTexture(s_SkyViewLutTexture, m_AtmosphereViewLutTexture);

@@ -240,7 +240,7 @@ float4 EvaluateLight_Directional(LightLoopContext lightLoopContext, PositionInpu
 TEXTURE2D_X(_CloudShadow);
 SAMPLER(sampler_CloudShadow);
 
-SHADOW_TYPE EvaluateShadow_Directional( LightLoopContext lightLoopContext, PositionInputs posInput,
+DirectionalShadowType EvaluateShadow_Directional( LightLoopContext lightLoopContext, PositionInputs posInput,
                                         DirectionalLightData light, BuiltinData builtinData, float3 N)
 {
 #ifndef LIGHT_EVALUATION_NO_SHADOWS

@@ -125,7 +125,8 @@ namespace UnityEngine.Rendering.HighDefinition
         [Tooltip("The minimum elevation angle in degree that should be used to evaluate the sun transmittance to the ground. Useful to maintain a visible sun light and shadow on meshes even when the sun has started going below the horizon. This does not affect the aerial perspective.")]
         public ClampedFloatParameter transmittanceMinLightElevationAngle = new ClampedFloatParameter(-90.0f, -90f, 90f);
 
-        AtmosphereParameters m_Parameters;
+        //
+        AtmosphereParameters m_InternalParams = new AtmosphereParameters();
 
         AtmosphereSky()
         {
@@ -173,11 +174,11 @@ namespace UnityEngine.Rendering.HighDefinition
 
         internal void UpdateInternalParams(Vector3 position)
         {
-            m_Parameters.Setup(this);
-            m_Parameters.UpdateTransform(position, transformMode.value);
+            m_InternalParams.Setup(this);
+            m_InternalParams.UpdateTransform(position, transformMode.value);
         }
 
-        internal AtmosphereParameters GetInternalParams() => m_Parameters;
+        internal AtmosphereParameters GetInternalParams() => m_InternalParams;
 
         internal static Color GetRayleighScattering()
         {
