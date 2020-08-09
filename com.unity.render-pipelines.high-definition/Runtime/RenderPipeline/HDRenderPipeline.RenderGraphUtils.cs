@@ -143,7 +143,9 @@ namespace UnityEngine.Rendering.HighDefinition
                     builder.SetRenderFunc(
                     (RenderOcclusionMeshesPassData data, RenderGraphContext ctx) =>
                     {
-                        data.hdCamera.xr.RenderOcclusionMeshes(ctx.cmd, ctx.resources.GetTexture(data.depthBuffer));
+                        bool msaa = hdCamera.frameSettings.IsEnabled(FrameSettingsField.MSAA);
+                        Color clearColor = GetColorBufferClearColor(hdCamera);
+                        hdCamera.xr.RenderOcclusionMeshes(ctx.cmd, clearColor, msaa ? m_CameraColorMSAABuffer : m_CameraColorBuffer, m_SharedRTManager.GetDepthStencilBuffer(msaa));
                     });
                 }
             }

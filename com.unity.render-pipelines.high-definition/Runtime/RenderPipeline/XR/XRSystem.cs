@@ -137,13 +137,21 @@ namespace UnityEngine.Rendering.HighDefinition
                 {
                     // custom layout in used
                 }
+#if ENABLE_VR && ENABLE_XR_MODULE
                 else if (xrActive && xrSupported)
                 {
                     // Disable vsync on the main display when rendering to a XR device
                     QualitySettings.vSyncCount = 0;
 
+                    if(display != null)
+                    {
+                        display.zNear = camera.nearClipPlane;
+                        display.zFar = camera.farClipPlane;
+                    }
+
                     CreateLayoutFromXrSdk(camera, singlePassAllowed);
                 }
+#endif
                 else
                 {
                     AddPassToFrame(camera, emptyPass);
@@ -223,9 +231,6 @@ namespace UnityEngine.Rendering.HighDefinition
             {
                 display.GetRenderPass(renderPassIndex, out var renderPass);
                 display.GetCullingParameters(camera, renderPass.cullingPassIndex, out var cullingParams);
-                display.zNear = camera.nearClipPlane;
-                display.zFar = camera.farClipPlane;
-                display.sRGB = false;
 
                 // Disable legacy stereo culling path
                 cullingParams.cullingOptions &= ~CullingOptions.Stereo;
@@ -284,7 +289,7 @@ namespace UnityEngine.Rendering.HighDefinition
                 cmd.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
 
                 int mirrorBlitMode = display.GetPreferredMirrorBlitMode();
-                if (display.GetMirrorViewBlitDesc(null, out var blitDesc, mirrorBlitMode))
+                if (display.GetMirrorViewBlitDesc(null, out var blitDesc))
                 {
                     if (blitDesc.nativeBlitAvailable)
                     {

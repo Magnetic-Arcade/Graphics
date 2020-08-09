@@ -177,18 +177,19 @@ VaryingsMeshType VertMesh(AttributesMesh input)
 #endif
 #if defined(VARYINGS_NEED_VERTEX_FOG) || defined(VARYINGS_DS_NEED_VERTEX_FOG)
         #if SHADEROPTIONS_VERTEX_FOG == 0
-        #error Vertex fog varyings are defined, but the vertex fog shader option is disabled.
+            #error Vertex fog varyings are defined, but the vertex fog shader option is disabled.
         #endif
         output.vertexFog = float4(0,0,0,1);
-#if !defined(_FORCE_PIXEL_FOG)
-#if defined(TESSELLATION_ON)
-        float4 positionCS = TransformWorldToHClip(positionRWS);
-#else
-        float4 positionCS = output.positionCS;
-#endif
-        float3 V = GetWorldSpaceNormalizeViewDir(positionRWS);
-        EvaluateAtmosphericScatteringPerVertex(positionCS, positionRWS, V, output.vertexFog);
-#endif
+        #if !defined(_FORCE_PIXEL_FOG)
+            #if defined(TESSELLATION_ON)
+                float4 positionCS = TransformWorldToHClip(positionRWS);
+            #else
+                float4 positionCS = output.positionCS;
+            #endif
+               
+            float3 V = GetWorldSpaceNormalizeViewDir(positionRWS);
+            EvaluateAtmosphericScatteringPerVertex(positionCS, positionRWS, V, output.vertexFog);
+        #endif
 #endif
 
 #if TEST_RECURSIVE_RENDERING
