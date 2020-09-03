@@ -15,13 +15,13 @@ namespace UnityEngine.Rendering
 
         void Update()
         {
-            DebugManager.instance.UpdateActions();
-
-            if (DebugManager.instance.GetAction(DebugAction.EnableDebugMenu) != 0.0f)
-                DebugManager.instance.displayRuntimeUI = !DebugManager.instance.displayRuntimeUI;
-
-            if (DebugManager.instance.displayRuntimeUI && DebugManager.instance.GetAction(DebugAction.ResetAll) != 0.0f)
-                DebugManager.instance.Reset();
+            // DebugManager.instance.UpdateActions();
+            //
+            // if (DebugManager.instance.GetAction(DebugAction.EnableDebugMenu) != 0.0f)
+            //     DebugManager.instance.displayRuntimeUI = !DebugManager.instance.displayRuntimeUI;
+            //
+            // if (DebugManager.instance.displayRuntimeUI && DebugManager.instance.GetAction(DebugAction.ResetAll) != 0.0f)
+            //     DebugManager.instance.Reset();
         }
     }
 }
