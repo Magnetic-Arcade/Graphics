@@ -49,7 +49,7 @@ namespace UnityEngine.Rendering.HighDefinition
         // Aerial perspective
 
         [Tooltip("The distance at which we start evaluate the aerial pespective in Kilometers. Default: 0.1 kilometers.")]
-        public float aerialPerspectiveStartDepth = 0.1f;
+        public float aerialPerspectiveStartDepth = 0.5f;
 
         [Tooltip("When enabled, a depth test will be used to not write pixel closer to the camera than StartDepth, effectively improving performance.")]
         public bool aerialPerspectiveDepthTest = true;
