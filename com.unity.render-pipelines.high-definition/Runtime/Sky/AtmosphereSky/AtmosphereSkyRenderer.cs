@@ -484,10 +484,17 @@ namespace UnityEngine.Rendering.HighDefinition
                     if (s_Lights[i] == null)
                         continue;
 
-                    PrepareSunLight(s_Lights[i], parameters, out Vector3 transmittanceFactor, out Vector3 sunDiskOuterSpaceLuminance);
+                    PrepareSunLight(s_Lights[i], ref parameters, out Vector3 transmittanceFactor, out Vector3 sunDiskOuterSpaceLuminance);
 
                     Vector4 direction = -s_Lights[i].transform.forward;
-                    Vector4 color = s_Lights[i].color.linear * s_Lights[i].intensity;
+                    Vector4 color = s_Lights[i].color * s_Lights[i].intensity;
+                    
+                    if (s_Lights[i].useColorTemperature)
+                    {
+                        var cct = Mathf.CorrelatedColorTemperatureToRGB(s_Lights[i].legacyLight.colorTemperature);
+                        color *= cct;
+                    }
+                    
                     color.w = 1.0f;
                     Vector4 colorGlobalPostTransmittance = Vector4.Scale(color, transmittanceFactor);
                     colorGlobalPostTransmittance.w = 1.0f;
@@ -644,13 +651,12 @@ namespace UnityEngine.Rendering.HighDefinition
             return GraphicsFormat.R8G8B8_UNorm;
         }
 
-        void PrepareSunLight(HDAdditionalLightData light, in AtmosphereParameters parameters, out Vector3 transmittanceFactor, out Vector3 sunDiskOuterSpaceLuminance)
+        void PrepareSunLight(HDAdditionalLightData light, ref AtmosphereParameters parameters, out Vector3 transmittanceFactor, out Vector3 sunDiskOuterSpaceLuminance)
         {
             // See explanation in https://media.contentapi.ea.com/content/dam/eacom/frostbite/files/s2016-pbs-frostbite-sky-clouds-new.pdf page 26
-            const bool atmosphereAffectsSunIlluminance = true;
-            Vector3 atmosphereLightDirection = light.transform.forward;
-            Vector3 transmittanceTowardSun = atmosphereAffectsSunIlluminance ? parameters.GetTransmittanceAtGroundLevel(atmosphereLightDirection) : Vector3.one;
-            Vector3 transmittanceAtZenithFinal = atmosphereAffectsSunIlluminance ? parameters.GetTransmittanceAtGroundLevel(new Vector3(0.0f, 1.0f, 0.0f)) : Vector3.one;
+            Vector3 atmosphereLightDirection = -light.transform.forward;
+            Vector3 transmittanceTowardSun = parameters.GetTransmittanceAtGroundLevel(atmosphereLightDirection);
+            Vector3 transmittanceAtZenithFinal = parameters.GetTransmittanceAtGroundLevel(new Vector3(0.0f, 1.0f, 0.0f));
             transmittanceFactor = m_Settings.transmittanceLUTLightPerPixelTransmittance ? Vector3.one : VectorDivide(transmittanceTowardSun, transmittanceAtZenithFinal);
 
             Vector3 sunZenithIlluminance = (Vector4) light.color;

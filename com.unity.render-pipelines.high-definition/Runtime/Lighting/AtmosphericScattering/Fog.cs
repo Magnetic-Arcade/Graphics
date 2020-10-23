@@ -145,7 +145,7 @@ namespace UnityEngine.Rendering.HighDefinition
             bool enablePBRFog = IsPBRFogEnabled(hdCamera);
 
             cb._FogEnabled = 1;
-            cb._PBRFogEnabled = enablePBRFog ? visualEnv.skyType.value == (int)SkyType.Atmosphere ? 2 : 1 : 0;
+            cb._PBRFogEnabled = enablePBRFog ? (visualEnv.skyType.value == (int)SkyType.Atmosphere ? 2 : 1) : 0;
             cb._EnableVolumetricFog = enableVolumetrics ? 1 : 0;
             cb._MaxFogDistance = maxFogDistance.value;
 

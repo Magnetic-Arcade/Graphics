@@ -22,7 +22,6 @@
 #define AP_KM_PER_SLICE_INV (1.0f / AP_KM_PER_SLICE)
 
 TEXTURE2D(_TransmittanceLutTexture); SAMPLER(sampler_TransmittanceLutTexture);
-TEXTURE3D(_AerialPerspectiveVolumeTexture); SAMPLER(sampler_AerialPerspectiveVolumeTexture);
 TEXTURE2D(_DistantSkyLightLutTexture); SAMPLER(sampler_DistantSkyLightLutTexture);
 TEXTURE2D(_SkyViewLutTexture);  SAMPLER(sampler_SkyViewLutTexture);
 TEXTURE3D(_CameraAerialPerspectiveVolume);  SAMPLER(sampler_CameraAerialPerspectiveVolume);
@@ -78,9 +77,7 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 	AP.b += Weight  <  1.0f ? 0.2f+0.2f*Weight : 0.0f;
 #endif
 
-#if USE_PREEXPOSURE
-	AP.rgb *= OneOverExposure;
-#endif
+	//AP.rgb *= GetInverseCurrentExposureMultiplier();
 
 	return AP;
 }

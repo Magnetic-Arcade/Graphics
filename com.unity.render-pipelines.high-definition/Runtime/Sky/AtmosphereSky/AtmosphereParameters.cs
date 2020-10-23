@@ -34,19 +34,19 @@ namespace UnityEngine.Rendering.HighDefinition
         {
             bottomRadiusKm = atmosphereSky.bottomRadius.value;
             topRadiusKm = atmosphereSky.bottomRadius.value + atmosphereSky.atmosphereHeight.value;
-            groundAlbedo = ColorToVector(atmosphereSky.groundAlbedo.value.linear);
+            groundAlbedo = ColorToVector(atmosphereSky.groundAlbedo.value);
             multiScatteringFactor = atmosphereSky.multiScatteringFactor.value;
 
             rayleighDensityExpScale = -1.0f / atmosphereSky.rayleighExponentialDistribution.value;
-            rayleighScattering = Clamp(ColorToVector(atmosphereSky.rayleighScattering.value.linear) * atmosphereSky.rayleighScatteringScale.value, 0.0f, 1e38f);
+            rayleighScattering = Clamp(ColorToVector(atmosphereSky.rayleighScattering.value) * atmosphereSky.rayleighScatteringScale.value, 0.0f, 1e38f);
 
-            mieScattering = Clamp(ColorToVector(atmosphereSky.mieScattering.value.linear) * atmosphereSky.mieScatteringScale.value, 0.0f, 1e38f);
-            mieAbsorption = Clamp(ColorToVector(atmosphereSky.mieAbsorption.value.linear) * atmosphereSky.mieAbsorptionScale.value, 0.0f, 1e38f);
+            mieScattering = Clamp(ColorToVector(atmosphereSky.mieScattering.value) * atmosphereSky.mieScatteringScale.value, 0.0f, 1e38f);
+            mieAbsorption = Clamp(ColorToVector(atmosphereSky.mieAbsorption.value) * atmosphereSky.mieAbsorptionScale.value, 0.0f, 1e38f);
             mieExtinction = mieScattering + mieAbsorption;
             miePhaseG = atmosphereSky.mieAnisotropy.value;
             mieDensityExpScale = -1.0f / atmosphereSky.mieExponentialDistribution.value;
 
-            absorptionExtinction = Clamp(ColorToVector(atmosphereSky.otherAbsorption.value.linear) * atmosphereSky.otherAbsorptionScale.value, 0.0f, 1e38f);
+            absorptionExtinction = Clamp(ColorToVector(atmosphereSky.otherAbsorption.value) * atmosphereSky.otherAbsorptionScale.value, 0.0f, 1e38f);
             TentToCoefficients(atmosphereSky.otherTentDistribution.value,
                                out absorptionDensity0LayerWidth,
                                out absorptionDensity0LinearTerm,
