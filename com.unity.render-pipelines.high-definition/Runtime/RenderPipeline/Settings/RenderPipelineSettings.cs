@@ -105,6 +105,7 @@ namespace UnityEngine.Rendering.HighDefinition
             xrSettings = GlobalXRSettings.NewDefault(),
             postProcessQualitySettings = GlobalPostProcessingQualitySettings.NewDefault(),
             lightingQualitySettings = GlobalLightingQualitySettings.NewDefault(),
+            atmosphereSkySettings = GlobalAtmosphereSkySettings.NewDefault(),
 
             supportRayTracing = false,
             supportedRayTracingMode = SupportedRayTracingMode.Both,
@@ -229,6 +230,9 @@ namespace UnityEngine.Rendering.HighDefinition
         public GlobalXRSettings xrSettings;
         /// <summary>Global post processing quality settings.</summary>
         public GlobalPostProcessingQualitySettings postProcessQualitySettings;
+        
+        /// <summary>Global atmosphere sky settings.</summary>
+        public GlobalAtmosphereSkySettings atmosphereSkySettings;
 
         /// <summary>Light Settings.</summary>
         public LightSettings lightSettings;

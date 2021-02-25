@@ -138,18 +138,12 @@ float3 GetScreenWorldPos(float4 SVPos, float DeviceZ)
 #if UNITY_REVERSED_Z
 	DeviceZ = max(0.000000000001, DeviceZ);	// TODO: investigate why SvPositionToWorld returns bad values when DeviceZ is far=0 when using inverted z
 #endif
-    //NOTE: SvPositionToWorld
-	//return float4(SvPositionToTranslatedWorld(float4(SVPos.xy, DeviceZ, 1.0)), 1.0);
-   	//float2 positionNDC = SvPositionToScreenPosition(SVPos).xy;
     float2 positionNDC = SVPos.xy * _ScreenSize.zw + (0.5 * _ScreenSize.zw);
 	return ComputeWorldSpacePosition(positionNDC, DeviceZ, UNITY_MATRIX_I_VP);
 }
 
 float3 GetScreenWorldDir(in float4 SVPos)
 {
-	float2 ScreenPosition = SvPositionToScreenPosition(SVPos).xy;
-	const float Depth = 1000000.0f;
-    float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), UNITY_MATRIX_I_VP /*_ScreenToWorld*/);
     float2 positionNDC = SVPos.xy * _ScreenSize.zw;
     float3 positionWS = ComputeWorldSpacePosition(positionNDC, UNITY_RAW_FAR_CLIP_VALUE, UNITY_MATRIX_I_VP); // Jittered
 	return normalize(positionWS - _WorldSpaceCameraPos);
@@ -361,10 +355,7 @@ float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 		// && _RenderingReflectionCaptureMask==0.0f	// Do not render light disk when in reflection capture in order to avoid double specular. The sun contribution is already computed analyticaly.
         )
 	{
-		float3 LightDiskLuminance = GetLightDiskLuminance(
-			WorldPos, WorldDir, _BottomRadiusKm, _TopRadiusKm,
-			_TransmittanceLutTexture, sampler_TransmittanceLutTexture,
-			_AtmosphereLightDirection[LightIndex].xyz, _AtmosphereLightDiscCosHalfApexAngle[LightIndex].x, _AtmosphereLightDiscLuminance[LightIndex].xyz);
+		float3 LightDiskLuminance = GetLightDiskLuminance(WorldPos, WorldDir, _AtmosphereLightDirection[LightIndex].xyz, _AtmosphereLightDiscCosHalfApexAngle[LightIndex].x, _AtmosphereLightDiscLuminance[LightIndex].xyz);
 
 		// Clamp to avoid crazy high values (and exposed 64000.0f luminance is already crazy high, solar system sun is 1.6x10^9). Also this removes +inf float and helps TAA.
 		const float3 MaxLightLuminance = 64000.0f;

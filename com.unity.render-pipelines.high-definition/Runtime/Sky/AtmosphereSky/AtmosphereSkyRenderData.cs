@@ -1,6 +1,6 @@
 namespace UnityEngine.Rendering.HighDefinition
 {
-    struct AtmosphereParameters
+    struct AtmosphereSkyRenderData
     {
         public Vector3 planetCenterKm; // In sky unit (kilometers)
         public float bottomRadiusKm; // idem
@@ -27,8 +27,8 @@ namespace UnityEngine.Rendering.HighDefinition
         public Vector3 groundAlbedo;
         public float transmittanceMinLightElevationAngle;
 
-        public const float mToSkyUnit = 0.001f; // Meters to Kilometers
-        public const float skyUnitToM = 1.0f / mToSkyUnit; // Kilometers to Meters
+        public const float meterToSkyUnit = 0.001f; // Meters to Kilometers
+        public const float skyUnitToMeter = 1.0f / meterToSkyUnit; // Kilometers to Meters
 
         public void Setup(AtmosphereSky atmosphereSky)
         {
@@ -66,10 +66,10 @@ namespace UnityEngine.Rendering.HighDefinition
                     planetCenterKm = new Vector3(0.0f, -bottomRadiusKm, 0.0f);
                     break;
                 case AtmosphereTransformMode.PlanetTopAtComponentTransform:
-                    planetCenterKm = new Vector3(0.0f, -bottomRadiusKm, 0.0f) + position * mToSkyUnit;
+                    planetCenterKm = new Vector3(0.0f, -bottomRadiusKm, 0.0f) + position * meterToSkyUnit;
                     break;
                 case AtmosphereTransformMode.PlanetCenterAtComponentTransform:
-                    planetCenterKm = position * mToSkyUnit;
+                    planetCenterKm = position * meterToSkyUnit;
                     break;
                 default:
                     Debug.Assert(false);
@@ -86,6 +86,49 @@ namespace UnityEngine.Rendering.HighDefinition
             Vector3 worldDir = new Vector3(Mathf.Cos(azimuthElevation.y), Mathf.Sin(azimuthElevation.y), 0.0f); // no need to take azimuth into account as transmittance is symmetrical around zenith axis.
             Vector3 opticalDepthRGB = OpticalDepth(worldPos, worldDir);
             return new Vector3(Mathf.Exp(-opticalDepthRGB.x), Mathf.Exp(-opticalDepthRGB.y), Mathf.Exp(-opticalDepthRGB.z));
+        }
+
+        public void ComputeViewData(Vector3 worldCameraOrigin, 
+                                    Vector3 viewForward, 
+                                    Vector3 viewRight, 
+                                    out Vector3 skyWorldCameraOrigin, 
+                                    out Vector4 skyPlanetCenterAndViewHeight, 
+                                    out Matrix4x4 skyViewLutReferential)
+        {
+	        // The constants below should match the one in SkyAtmosphereCommon.ush
+	        // Always force to be 1 meters above the ground/sea level (to always see the sky and not be under the virtual planet occluding ray tracing) and lower for small planet radius
+	        const float planetRadiusOffset = 0.001f;
+            const float offset = planetRadiusOffset * skyUnitToMeter;
+            float bottomRadiusWorld = bottomRadiusKm * skyUnitToMeter;
+            Vector3 planetCenterWorld = planetCenterKm * skyUnitToMeter;
+            Vector3 planetCenterToCameraWorld = worldCameraOrigin - planetCenterWorld;
+            float distanceToPlanetCenterWorld = planetCenterToCameraWorld.magnitude;
+
+	        // If the camera is below the planet surface, we snap it back onto the surface.
+	        // This is to make sure the sky is always visible even if the camera is inside the virtual planet.
+	        skyWorldCameraOrigin = distanceToPlanetCenterWorld < (bottomRadiusWorld + offset) ? planetCenterWorld + (bottomRadiusWorld + offset) * (planetCenterToCameraWorld / distanceToPlanetCenterWorld) : worldCameraOrigin;
+	        skyPlanetCenterAndViewHeight = new Vector4(planetCenterWorld.x, planetCenterWorld.y, planetCenterWorld.z, (skyWorldCameraOrigin - planetCenterWorld).magnitude);
+
+	        // Now compute the referential for the SkyView LUT
+            Vector3 planetCenterToWorldCameraPos = (skyWorldCameraOrigin - planetCenterWorld) * meterToSkyUnit;
+            Vector3 up = planetCenterToWorldCameraPos;
+	        up.Normalize();
+            Vector3	forward = viewForward;		// This can make texel visible when the camera is rotating. Use constant worl direction instead?
+	        //FVector	Left = normalize(cross(Forward, Up)); 
+            Vector3 left = Vector3.Cross(forward, up);
+	        left.Normalize();
+	        if (Mathf.Abs(Vector3.Dot(forward, up)) > 0.99f)
+	        {
+		        left = -viewRight;
+	        }
+	        forward = Vector3.Cross(up, left);
+	        forward.Normalize();
+            
+            skyViewLutReferential = Matrix4x4.identity;
+	        skyViewLutReferential.SetColumn(0, forward);
+	        skyViewLutReferential.SetColumn(1, up);
+	        skyViewLutReferential.SetColumn(2, left);
+            skyViewLutReferential = skyViewLutReferential.transpose;
         }
 
         static Vector3 Clamp(Vector3 v, float min, float max)

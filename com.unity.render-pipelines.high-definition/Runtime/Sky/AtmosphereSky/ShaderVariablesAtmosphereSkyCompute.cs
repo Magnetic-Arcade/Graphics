@@ -1,7 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace UnityEngine.Rendering.HighDefinition
 {
     // Extra internal constants shared between all passes.
     [GenerateHLSL(needAccessors = false, generateCBuffer = true)]
+    [SuppressMessage("ReSharper", "NotAccessedField.Global")]
     public unsafe struct ShaderVariablesAtmosphereSkyCompute
     {
         public float _SampleCountMin;

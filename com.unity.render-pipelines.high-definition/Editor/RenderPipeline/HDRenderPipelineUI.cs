@@ -41,6 +41,8 @@ namespace UnityEditor.Rendering.HighDefinition
             LightingQuality = 1 << 25,
             SSRQuality = 1 << 26,
             VirtualTexturing = 1 << 27,
+            
+            AtmopshereSky = 1 << 28,
         }
 
         static readonly ExpandedState<Expandable, HDRenderPipelineAsset> k_ExpandedState = new ExpandedState<Expandable, HDRenderPipelineAsset>(Expandable.CameraFrameSettings | Expandable.General, "HDRP");
@@ -102,7 +104,9 @@ namespace UnityEditor.Rendering.HighDefinition
                     CED.FoldoutGroup(Styles.chromaticAberrationQualitySettings, Expandable.ChromaticAberrationQuality, k_ExpandedState, FoldoutOption.Indent | FoldoutOption.SubFoldout | FoldoutOption.NoSpaceAtEnd, Drawer_SectionChromaticAberrationQualitySettings)
                     ),
                 CED.FoldoutGroup(Styles.xrTitle, Expandable.XR, k_ExpandedState, Drawer_SectionXRSettings),
-                CED.FoldoutGroup(Styles.virtualTexturingTitle, Expandable.VirtualTexturing, k_ExpandedState, Drawer_SectionVTSettings)
+                CED.FoldoutGroup(Styles.virtualTexturingTitle, Expandable.VirtualTexturing, k_ExpandedState, Drawer_SectionVTSettings),
+                
+                CED.FoldoutGroup(Styles.atmosphereSkyTitle, Expandable.AtmopshereSky, k_ExpandedState, Drawer_SectionAtmosphereSky)
             );
 
             // fix init of selection along what is serialized

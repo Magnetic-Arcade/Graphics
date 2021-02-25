@@ -379,17 +379,7 @@ void EvaluateAtmosphericScattering(PositionInputs posInput, float3 V, out float3
         const float3 skyPos = posInput.positionWS * M_TO_SKY_UNIT;
         const float3 cameraPos = _SkyWorldCameraOrigin.xyz * M_TO_SKY_UNIT;
         float4 positionNDC = float4(posInput.positionNDC.xy, posInput.deviceDepth, 1.0);
-        float4 aerialLuminance = GetAerialPerspectiveLuminanceTransmittance(
-            positionNDC, skyPos, cameraPos,
-            _CameraAerialPerspectiveVolume, sampler_CameraAerialPerspectiveVolume,
-            _AtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
-            _AtmosphereCameraAerialPerspectiveVolumeDepthResolution,
-            _AtmosphereAerialPerspectiveStartDepthKm,
-            _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
-            _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
-            1.0f);
-
-        aerialLuminance.rgb *= _AtmosphereSkyLuminanceFactor.rgb * GetCurrentExposureMultiplier();
+        float4 aerialLuminance = GetAerialPerspectiveLuminanceTransmittance(positionNDC, skyPos, cameraPos);
 
         // Apply any other fog OVER aerial perspective because AP is usually optically thiner.
         color.rgb = color.rgb + aerialLuminance.rgb * (1 - opacity);
@@ -477,17 +467,7 @@ void EvaluateAtmosphericScatteringPerVertex(float4 positionCS, float3 positionWS
             positionNDC.xy = positionNDC.xy * 0.5 + 0.5;
         }
 
-        float4 aerialLuminance = GetAerialPerspectiveLuminanceTransmittance(
-            positionNDC, skyPos, cameraPos,
-            _CameraAerialPerspectiveVolume, sampler_CameraAerialPerspectiveVolume,
-            _AtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
-            _AtmosphereCameraAerialPerspectiveVolumeDepthResolution,
-            _AtmosphereAerialPerspectiveStartDepthKm,
-            _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
-            _AtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
-            1.0f);
-
-        aerialLuminance.rgb *= _AtmosphereSkyLuminanceFactor.rgb * GetCurrentExposureMultiplier();
+        float4 aerialLuminance = GetAerialPerspectiveLuminanceTransmittance(positionNDC, skyPos, cameraPos);
 
         // Apply any other fog OVER aerial perspective because AP is usually optically thiner.
         color.rgb = color.rgb + aerialLuminance.rgb * (1 - opacity);

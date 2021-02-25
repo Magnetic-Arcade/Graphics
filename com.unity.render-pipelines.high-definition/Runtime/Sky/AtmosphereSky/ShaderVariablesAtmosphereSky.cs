@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -11,6 +13,7 @@ namespace UnityEngine.Rendering.HighDefinition
     }
 
     [GenerateHLSL(needAccessors = false, generateCBuffer = true)]
+    [SuppressMessage("ReSharper", "NotAccessedField.Global")]
     public unsafe struct ShaderVariablesAtmosphereSky
     {
         //Lights
@@ -25,6 +28,8 @@ namespace UnityEngine.Rendering.HighDefinition
         public fixed float _AtmosphereLightDiscLuminance[(int) AtmosphereConfig.MaxAtmosphereLights * 4];
         [HLSLArray((int) AtmosphereConfig.MaxAtmosphereLights, typeof(Vector4))]
         public fixed float _AtmosphereLightDiscCosHalfApexAngle[(int) AtmosphereConfig.MaxAtmosphereLights * 4];
+        [HLSLArray(2, typeof(Matrix4x4))]
+        public fixed float _SkyViewLutReferential[(int) 16 * 2];
 #pragma warning restore 649
 
         //Sky

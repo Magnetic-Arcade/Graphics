@@ -28,6 +28,8 @@ namespace UnityEditor.Rendering.HighDefinition
             public static readonly GUIContent postProcessQualitySubTitle = EditorGUIUtility.TrTextContent("Post-processing Quality Settings");
             public static readonly GUIContent lightingQualitySettings = EditorGUIUtility.TrTextContent("Lighting Quality Settings");
 
+            public static readonly GUIContent atmosphereSkyTitle = EditorGUIUtility.TrTextContent("Atmosphere Sky Settings");
+            
             public static readonly GUIContent lightLayerSubTitle = EditorGUIUtility.TrTextContent("Light Layers");
             public static readonly GUIContent cookiesSubTitle = EditorGUIUtility.TrTextContent("Cookies");
             public static readonly GUIContent reflectionsSubTitle = EditorGUIUtility.TrTextContent("Reflections");

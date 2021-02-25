@@ -95,11 +95,10 @@
 
         // Get the light disk luminance to draw
         float3 PreExposedL = 0;
-        float3 LuminanceScale = 1.0f;
+        float3 LuminanceScale = _SkyLuminanceFactor;
         //float DeviceZ = LookupDeviceZ(UvBuffer);
         if (renderSunDisk)
         {
-            LuminanceScale = _SkyLuminanceFactor;
     //         PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 0);
     // #if SECOND_ATMOSPHERE_LIGHT_ENABLED
     //         PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 1);

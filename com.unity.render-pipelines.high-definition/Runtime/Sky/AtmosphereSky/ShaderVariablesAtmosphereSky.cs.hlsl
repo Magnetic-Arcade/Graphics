@@ -17,6 +17,7 @@ CBUFFER_START(ShaderVariablesAtmosphereSky)
     float4 _AtmosphereLightColorGlobalPostTransmittance[2];
     float4 _AtmosphereLightDiscLuminance[2];
     float4 _AtmosphereLightDiscCosHalfApexAngle[2];
+    float4x4 _SkyViewLutReferential[2];
     float4 _SkyViewLutSizeAndInvSize;
     float3 _SkyWorldCameraOrigin;
     float _ASPUnused0;

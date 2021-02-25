@@ -67,6 +67,8 @@ namespace UnityEditor.Rendering.HighDefinition
         public SerializedPostProcessingQualitySettings postProcessQualitySettings;
         public SerializedLightingQualitySettings lightingQualitySettings;
         internal SerializedGlobalProbeVolumeSettings probeVolumeSettings;
+        
+        public SerializedAtmosphereSkySettings atmosphereSkySettings;
 
         public SerializedLightSettings lightSettings;
         public SerializedScalableSetting lodBias;
@@ -132,6 +134,8 @@ namespace UnityEditor.Rendering.HighDefinition
             lodBias = new SerializedScalableSetting(root.Find((RenderPipelineSettings s) => s.lodBias));
             maximumLODLevel = new SerializedScalableSetting(root.Find((RenderPipelineSettings s) => s.maximumLODLevel));
             lightingQualitySettings = new SerializedLightingQualitySettings(root.Find((RenderPipelineSettings s) => s.lightingQualitySettings));
+            
+            atmosphereSkySettings = new SerializedAtmosphereSkySettings(root.Find((RenderPipelineSettings s) => s.atmosphereSkySettings));
 
         #pragma warning disable 618 // Type or member is obsolete
             m_ObsoleteincreaseSssSampleCount = root.Find((RenderPipelineSettings s) => s.m_ObsoleteincreaseSssSampleCount);

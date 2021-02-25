@@ -126,7 +126,7 @@ namespace UnityEngine.Rendering.HighDefinition
         public ClampedFloatParameter transmittanceMinLightElevationAngle = new ClampedFloatParameter(-90.0f, -90f, 90f);
 
         //
-        AtmosphereParameters m_InternalParams = new AtmosphereParameters();
+        AtmosphereSkyRenderData m_RenderData = new AtmosphereSkyRenderData();
 
         AtmosphereSky()
         {
@@ -172,13 +172,13 @@ namespace UnityEngine.Rendering.HighDefinition
         /// <returns> AtmosphereSkyRenderer type. </returns>
         public override Type GetSkyRendererType() { return typeof(AtmosphereSkyRenderer); }
 
-        internal void UpdateInternalParams(Vector3 position)
+        internal void UpdateRenderData(Vector3 position)
         {
-            m_InternalParams.Setup(this);
-            m_InternalParams.UpdateTransform(position, transformMode.value);
+            m_RenderData.Setup(this);
+            m_RenderData.UpdateTransform(position, transformMode.value);
         }
 
-        internal AtmosphereParameters GetInternalParams() => m_InternalParams;
+        internal AtmosphereSkyRenderData GetRenderData() => m_RenderData;
 
         internal static Color GetRayleighScattering()
         {
