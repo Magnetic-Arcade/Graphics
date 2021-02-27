@@ -1064,7 +1064,7 @@ namespace UnityEngine.Rendering
                 {
                     var sv = UnityEditor.SceneView.sceneViews[i] as UnityEditor.SceneView;
             #if UNITY_2020_2_OR_NEWER
-                    if (sv.camera == camera && sv.sceneViewState.materialUpdateEnabled)
+                    if (sv.camera == camera && sv.sceneViewState.alwaysRefreshEnabled)
             #else
                     if (sv.camera == camera && sv.sceneViewState.showMaterialUpdate)
             #endif

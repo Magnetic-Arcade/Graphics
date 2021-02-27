@@ -1,12 +1,12 @@
 using UnityEditor;
-using UnityEditor.Experimental.AssetImporters;
+
 using UnityEngine;
 using Debug = System.Diagnostics.Debug;
 
 namespace UnityEditor.ShaderGraph
 {
     [CustomEditor(typeof(ShaderSubGraphImporter))]
-    class ShaderSubGraphImporterEditor : ScriptedImporterEditor
+    class ShaderSubGraphImporterEditor : UnityEditor.AssetImporters.ScriptedImporterEditor
     {
         public override bool showImportedObject => Unsupported.IsDeveloperMode();
         protected override bool needsApplyRevert => false;

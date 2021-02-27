@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
-using UnityEditor.Experimental.AssetImporters;
+
 using UnityEditor.Graphing;
 using UnityEditor.Graphing.Util;
 using UnityEditor.ShaderGraph.Internal;
@@ -20,12 +20,12 @@ namespace UnityEditor.ShaderGraph
     // sure that all shader graphs get re-imported. Re-importing is required,
     // because the shader graph codegen is different for V2.
     // This ifdef can be removed once V2 is the only option.
-    [ScriptedImporter(102, Extension, 3)]
+    [UnityEditor.AssetImporters.ScriptedImporter(102, Extension, 3)]
 #else
     [ScriptedImporter(34, Extension, 3)]
 #endif
 
-    class ShaderGraphImporter : ScriptedImporter
+    class ShaderGraphImporter : UnityEditor.AssetImporters.ScriptedImporter
     {
         public const string Extension = "shadergraph";
         public const string LegacyExtension = "ShaderGraph";
@@ -86,7 +86,7 @@ Shader ""Hidden/GraphErrorShader2""
             }
         }
 
-        public override void OnImportAsset(AssetImportContext ctx)
+        public override void OnImportAsset(UnityEditor.AssetImporters.AssetImportContext ctx)
         {
             var oldShader = AssetDatabase.LoadAssetAtPath<Shader>(ctx.assetPath);
             if (oldShader != null)

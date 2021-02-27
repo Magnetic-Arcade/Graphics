@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using UnityEditor.Callbacks;
-using UnityEditor.Experimental.AssetImporters;
+
 using UnityEditor.ShaderGraph.Drawing;
 using UnityEngine;
 using UnityEditor.Graphing;
@@ -12,7 +12,7 @@ namespace UnityEditor.ShaderGraph
 {
 
     [CustomEditor(typeof(ShaderGraphImporter))]
-    class ShaderGraphImporterEditor : ScriptedImporterEditor
+    class ShaderGraphImporterEditor : UnityEditor.AssetImporters.ScriptedImporterEditor
     {
         protected override bool needsApplyRevert => false;
 

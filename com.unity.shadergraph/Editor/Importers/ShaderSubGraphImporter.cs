@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
-using UnityEditor.Experimental.AssetImporters;
+
 using UnityEngine;
 using UnityEditor.Graphing;
 using UnityEditor.Graphing.Util;
@@ -14,8 +14,8 @@ using UnityEditor.ShaderGraph.Serialization;
 namespace UnityEditor.ShaderGraph
 {
     [ExcludeFromPreset]
-    [ScriptedImporter(14, Extension)]
-    class ShaderSubGraphImporter : ScriptedImporter
+    [UnityEditor.AssetImporters.ScriptedImporter(14, Extension)]
+    class ShaderSubGraphImporter : UnityEditor.AssetImporters.ScriptedImporter
     {
         public const string Extension = "shadersubgraph";
 
@@ -33,7 +33,7 @@ namespace UnityEditor.ShaderGraph
             }
         }
 
-        public override void OnImportAsset(AssetImportContext ctx)
+        public override void OnImportAsset(UnityEditor.AssetImporters.AssetImportContext ctx)
         {
             var graphAsset = ScriptableObject.CreateInstance<SubGraphAsset>();
             var subGraphPath = ctx.assetPath;
