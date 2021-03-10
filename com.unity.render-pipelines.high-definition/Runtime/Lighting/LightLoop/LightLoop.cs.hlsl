@@ -1,5 +1,5 @@
 //
-// This file was automatically generated. Please don't edit by hand.
+// This file was automatically generated. Please don't edit by hand. Execute Editor command [ Edit > Rendering > Generate Shader Includes ] instead
 //
 
 #ifndef LIGHTLOOP_CS_HLSL
@@ -18,10 +18,9 @@
 #define LIGHTCATEGORY_PUNCTUAL (0)
 #define LIGHTCATEGORY_AREA (1)
 #define LIGHTCATEGORY_ENV (2)
-#define LIGHTCATEGORY_PROBE_VOLUME (3)
-#define LIGHTCATEGORY_DECAL (4)
-#define LIGHTCATEGORY_DENSITY_VOLUME (5)
-#define LIGHTCATEGORY_COUNT (6)
+#define LIGHTCATEGORY_DECAL (3)
+#define LIGHTCATEGORY_DENSITY_VOLUME (4)
+#define LIGHTCATEGORY_COUNT (5)
 
 //
 // UnityEngine.Rendering.HighDefinition.LightFeatureFlags:  static fields
@@ -59,9 +58,12 @@
 #define SCREEN_SPACE_COLOR_SHADOW_FLAG (256)
 #define INVALID_SCREEN_SPACE_SHADOW (255)
 #define SCREEN_SPACE_SHADOW_INDEX_MASK (255)
-#define INDIRECT_DIFFUSE_FLAG_OFF (0)
-#define SCREEN_SPACE_INDIRECT_DIFFUSE_FLAG (1)
-#define RAY_TRACED_INDIRECT_DIFFUSE_FLAG (2)
+
+//
+// UnityEngine.Rendering.HighDefinition.ClusterDebugMode:  static fields
+//
+#define CLUSTERDEBUGMODE_VISUALIZE_OPAQUE (0)
+#define CLUSTERDEBUGMODE_VISUALIZE_SLICE (1)
 
 // Generated from UnityEngine.Rendering.HighDefinition.SFiniteLightBound
 // PackingRules = Exact
@@ -71,7 +73,7 @@ struct SFiniteLightBound
     float3 boxAxisY;
     float3 boxAxisZ;
     float3 center;
-    float2 scaleXY;
+    float scaleXY;
     float radius;
 };
 
@@ -109,9 +111,9 @@ CBUFFER_START(ShaderVariablesLightList)
     uint _EnvLightIndexShift;
     uint _DecalIndexShift;
     uint _DensityVolumeIndexShift;
-    uint _ProbeVolumeIndexShift;
     uint _Pad0_SVLL;
     uint _Pad1_SVLL;
+    uint _Pad2_SVLL;
 CBUFFER_END
 
 //
@@ -133,7 +135,7 @@ float3 GetCenter(SFiniteLightBound value)
 {
     return value.center;
 }
-float2 GetScaleXY(SFiniteLightBound value)
+float GetScaleXY(SFiniteLightBound value)
 {
     return value.scaleXY;
 }

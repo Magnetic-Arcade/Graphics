@@ -43,7 +43,8 @@ namespace UnityEngine.Rendering.HighDefinition.Compositor
         protected override void Execute(CustomPassContext ctx)
         {
             // Executed every frame for all the camera inside the pass volume
-            AdditionalCompositorData layerData = ctx.hdCamera.camera.gameObject.GetComponent<AdditionalCompositorData>();
+            AdditionalCompositorData layerData = null;
+            ctx.hdCamera.camera.gameObject.TryGetComponent<AdditionalCompositorData>(out layerData);
             if (layerData == null || layerData.clearColorTexture == null)
             {
                 return;
@@ -79,7 +80,7 @@ namespace UnityEngine.Rendering.HighDefinition.Compositor
                 m_FullscreenPassMaterial.SetVector(ShaderIDs.k_BlitScaleBias, new Vector4(1.0f, 1.0f, 0.0f, 0.0f));
                 m_FullscreenPassMaterial.SetInt(ShaderIDs.k_ClearAlpha, layerData.clearAlpha ? 1 : 0);
 
-                // draw a quad (not Triangle), to support letter boxing and stretching 
+                // draw a quad (not Triangle), to support letter boxing and stretching
                 ctx.cmd.DrawProcedural(Matrix4x4.identity, m_FullscreenPassMaterial, (int)PassType.DrawTextureAndClearStencil, MeshTopology.Quads, 4, 1);
             }
         }

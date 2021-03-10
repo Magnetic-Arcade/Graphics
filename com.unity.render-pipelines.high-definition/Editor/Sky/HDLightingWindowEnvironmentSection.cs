@@ -32,13 +32,18 @@ namespace UnityEditor.Rendering.HighDefinition
         {
             SerializedObject serializedObject;
             public SerializedProperty skyUniqueID;
-            public SerializedProperty profile;
+            public SerializedProperty cloudUniqueID;
+            public VolumeProfile volumeProfile
+            {
+                get => (serializedObject.targetObject as StaticLightingSky).profile;
+                set => (serializedObject.targetObject as StaticLightingSky).profile = value;
+            }
 
             public SerializedStaticLightingSky(StaticLightingSky staticLightingSky)
             {
                 serializedObject = new SerializedObject(staticLightingSky);
                 skyUniqueID = serializedObject.FindProperty("m_StaticLightingSkyUniqueID");
-                profile = serializedObject.FindProperty("m_Profile");
+                cloudUniqueID = serializedObject.FindProperty("m_StaticLightingCloudsUniqueID");
             }
 
             public void Apply() => serializedObject.ApplyModifiedProperties();
@@ -56,6 +61,8 @@ namespace UnityEditor.Rendering.HighDefinition
 
         List<GUIContent> m_SkyClassNames = null;
         List<int> m_SkyUniqueIDs = null;
+        List<GUIContent> m_CloudClassNames = null;
+        List<int> m_CloudUniqueIDs = null;
 
         const string k_ToggleValueKey = "HDRP:LightingWindowEnvironemntSection:Header";
         bool m_ToggleValue = true;
@@ -119,10 +126,12 @@ namespace UnityEditor.Rendering.HighDefinition
             WorkarroundWhileActiveSceneChangedHookIsNotCalled();
             m_SerializedActiveSceneLightingSky.Update();
 
-            //Volume can have changed. Check available sky
-            UpdateSkyIntPopupData();
-
             EditorGUI.BeginChangeCheck();
+
+            //Volume can have changed. Check available sky
+            UpdateIntPopupData(ref m_SkyClassNames, ref m_SkyUniqueIDs, SkyManager.skyTypesDict, m_SerializedActiveSceneLightingSky.skyUniqueID);
+            UpdateIntPopupData(ref m_CloudClassNames, ref m_CloudUniqueIDs, SkyManager.cloudTypesDict, m_SerializedActiveSceneLightingSky.cloudUniqueID);
+
             DrawGUI();
             if (EditorGUI.EndChangeCheck())
             {
@@ -170,48 +179,63 @@ namespace UnityEditor.Rendering.HighDefinition
                 ++EditorGUI.indentLevel;
 
                 //cannot use SerializeProperty due to logic in the property
-                var profile = m_SerializedActiveSceneLightingSky.profile.objectReferenceValue;
-                var newProfile = EditorGUILayout.ObjectField(EditorGUIUtility.TrTextContent("Profile"), m_SerializedActiveSceneLightingSky.profile.objectReferenceValue, typeof(VolumeProfile), allowSceneObjects: false) as VolumeProfile;
+                var profile = m_SerializedActiveSceneLightingSky.volumeProfile;
+                var newProfile = EditorGUILayout.ObjectField(EditorGUIUtility.TrTextContent("Profile"), profile, typeof(VolumeProfile), allowSceneObjects: false) as VolumeProfile;
                 if (profile != newProfile)
-                    m_SerializedActiveSceneLightingSky.profile.objectReferenceValue = newProfile;
+                {
+                    m_SerializedActiveSceneLightingSky.volumeProfile = newProfile;
+                }
 
                 using (new EditorGUI.DisabledScope(m_SkyClassNames.Count == 1)) // Only "None"
                 {
                     EditorGUILayout.IntPopup(m_SerializedActiveSceneLightingSky.skyUniqueID, m_SkyClassNames.ToArray(), m_SkyUniqueIDs.ToArray(), EditorGUIUtility.TrTextContent("Static Lighting Sky", "Specify which kind of sky you want to use for static ambient in the referenced profile for active scene."));
                 }
 
+                using (new EditorGUI.DisabledScope(m_CloudClassNames.Count == 1)) // Only "None"
+                {
+                    EditorGUILayout.IntPopup(m_SerializedActiveSceneLightingSky.cloudUniqueID, m_CloudClassNames.ToArray(), m_CloudUniqueIDs.ToArray(), EditorGUIUtility.TrTextContent("Static Lighting Clouds", "Specify which kind of clouds you want to use for static ambient in the referenced profile for active scene."));
+                }
+
                 --EditorGUI.indentLevel;
             }
         }
 
-        void UpdateSkyIntPopupData()
+        void UpdateIntPopupData(ref List<GUIContent> classNames, ref List<int> uniqueIds, Dictionary<int, Type> typesDict, SerializedProperty idProperty)
         {
-            if (m_SkyClassNames == null)
+            if (classNames == null)
             {
-                m_SkyClassNames = new List<GUIContent>();
-                m_SkyUniqueIDs = new List<int>();
+                classNames = new List<GUIContent>();
+                uniqueIds = new List<int>();
             }
 
             // We always reinit because the content can change depending on the volume and we are not always notified when this happens (like for undo/redo for example)
-            m_SkyClassNames.Clear();
-            m_SkyUniqueIDs.Clear();
+            classNames.Clear();
+            uniqueIds.Clear();
 
             // Add special "None" case.
-            m_SkyClassNames.Add(new GUIContent("None"));
-            m_SkyUniqueIDs.Add(0);
+            classNames.Add(new GUIContent("None"));
+            uniqueIds.Add(0);
 
-            VolumeProfile profile = m_SerializedActiveSceneLightingSky.profile.objectReferenceValue as VolumeProfile;
+            VolumeProfile profile = m_SerializedActiveSceneLightingSky.volumeProfile;
             if (profile != null)
             {
-                var skyTypesDict = SkyManager.skyTypesDict;
+                bool foundID = false;
+                var currentID = idProperty.intValue;
 
-                foreach (KeyValuePair<int, Type> kvp in skyTypesDict)
+                foreach (KeyValuePair<int, Type> kvp in typesDict)
                 {
-                    if (profile.Has(kvp.Value))
+                    if (profile.TryGet(kvp.Value, out VolumeComponent comp) && comp.active)
                     {
-                        m_SkyClassNames.Add(new GUIContent(kvp.Value.Name.ToString()));
-                        m_SkyUniqueIDs.Add(kvp.Key);
+                        classNames.Add(new GUIContent(kvp.Value.Name.ToString()));
+                        uniqueIds.Add(kvp.Key);
+                        foundID |= (currentID == kvp.Key);
                     }
+                }
+
+                if (!foundID) // Selected volume component has been deleted
+                {
+                    idProperty.intValue = 0;
+                    GUI.changed = true;
                 }
             }
         }

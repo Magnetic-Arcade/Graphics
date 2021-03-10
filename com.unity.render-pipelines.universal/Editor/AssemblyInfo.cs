@@ -1,3 +1,5 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("MagneticArcade.Filament.Editor")]
+[assembly: InternalsVisibleTo("UniversalGraphicsTests")]
+[assembly: InternalsVisibleTo("Unity.RenderPipelines.Universal.Editor.Tests")]
+[assembly: InternalsVisibleTo("Unity.GraphicTests.Performance.Universal.Editor")]

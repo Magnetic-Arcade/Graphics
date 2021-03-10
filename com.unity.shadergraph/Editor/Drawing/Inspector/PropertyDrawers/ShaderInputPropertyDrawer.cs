@@ -1,10 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Data.Interfaces;
-using Drawing.Inspector.PropertyDrawers;
 using UnityEditor;
 using UnityEditor.Graphing;
 using UnityEditor.Graphing.Util;
@@ -17,6 +15,7 @@ using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UIElements;
 using FloatField = UnityEditor.ShaderGraph.Drawing.FloatField;
+using ContextualMenuManipulator = UnityEngine.UIElements.ContextualMenuManipulator;
 
 namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 {
@@ -24,11 +23,11 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
     class ShaderInputPropertyDrawer : IPropertyDrawer
     {
         internal delegate void ChangeExposedFieldCallback(bool newValue);
+        internal delegate void ChangeDisplayNameCallback(string newValue);
         internal delegate void ChangeReferenceNameCallback(string newValue);
         internal delegate void ChangeValueCallback(object newValue);
         internal delegate void PreChangeValueCallback(string actionName);
         internal delegate void PostChangeValueCallback(bool bTriggerPropertyUpdate = false, ModificationScope modificationScope = ModificationScope.Node);
-        internal delegate void MessageManagerCallback(string message);
 
         // Keyword
         ReorderableList m_KeywordReorderableList;
@@ -37,27 +36,48 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
         //Virtual Texture
         ReorderableList m_VTReorderableList;
         int m_VTSelectedIndex;
+        private static GUIStyle greyLabel;
+        TextField m_VTLayer_Name;
+        IdentifierField m_VTLayer_RefName;
+        ObjectField m_VTLayer_Texture;
+        EnumField m_VTLayer_TextureType;
+
+        // Display Name
+        TextField m_DisplayNameField;
 
         // Reference Name
+        TextPropertyDrawer m_ReferenceNameDrawer;
         TextField m_ReferenceNameField;
-        public ChangeReferenceNameCallback _resetReferenceNameCallback;
 
         ShaderInput shaderInput;
 
+        Toggle exposedToggle;
+        VisualElement keywordScopeField;
+
+        const string m_DisplayNameDisallowedPattern = "[^\\w_ ]";
+        const string m_ReferenceNameDisallowedPattern = @"(?:[^A-Za-z_0-9_])";
+
+        public ShaderInputPropertyDrawer()
+        {
+            greyLabel = new GUIStyle(EditorStyles.label);
+            greyLabel.normal = new GUIStyleState { textColor = Color.grey };
+            greyLabel.focused = new GUIStyleState { textColor = Color.grey };
+            greyLabel.hover = new GUIStyleState { textColor = Color.grey };
+        }
+
         GraphData graphData;
-        bool isSubGraph { get ; set;  }
+        bool isSubGraph { get; set; }
         ChangeExposedFieldCallback _exposedFieldChangedCallback;
-        ChangeReferenceNameCallback _referenceNameChangedCallback;
         Action _precisionChangedCallback;
         Action _keywordChangedCallback;
         ChangeValueCallback _changeValueCallback;
         PreChangeValueCallback _preChangeValueCallback;
         PostChangeValueCallback _postChangeValueCallback;
+
         public void GetPropertyData(
             bool isSubGraph,
             GraphData graphData,
             ChangeExposedFieldCallback exposedFieldCallback,
-            ChangeReferenceNameCallback referenceNameCallback,
             Action precisionChangedCallback,
             Action keywordChangedCallback,
             ChangeValueCallback changeValueCallback,
@@ -67,7 +87,6 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
             this.isSubGraph = isSubGraph;
             this.graphData = graphData;
             this._exposedFieldChangedCallback = exposedFieldCallback;
-            this._referenceNameChangedCallback = referenceNameCallback;
             this._precisionChangedCallback = precisionChangedCallback;
             this._changeValueCallback = changeValueCallback;
             this._keywordChangedCallback = keywordChangedCallback;
@@ -84,16 +103,26 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
         {
             var propertySheet = new PropertySheet();
             shaderInput = actualObject as ShaderInput;
-            BuildExposedField(propertySheet);
+            BuildPropertyNameLabel(propertySheet);
+            BuildDisplayNameField(propertySheet);
             BuildReferenceNameField(propertySheet);
             BuildPropertyFields(propertySheet);
             BuildKeywordFields(propertySheet, shaderInput);
+            UpdateEnableState();
             return propertySheet;
+        }
+
+        void BuildPropertyNameLabel(PropertySheet propertySheet)
+        {
+            if (shaderInput is ShaderKeyword)
+                propertySheet.Add(PropertyDrawerUtils.CreateLabel($"Keyword: {shaderInput.displayName}", 0, FontStyle.Bold));
+            else
+                propertySheet.Add(PropertyDrawerUtils.CreateLabel($"Property: {shaderInput.displayName}", 0, FontStyle.Bold));
         }
 
         void BuildExposedField(PropertySheet propertySheet)
         {
-            if(!isSubGraph)
+            if (!isSubGraph)
             {
                 var toggleDataPropertyDrawer = new ToggleDataPropertyDrawer();
                 propertySheet.Add(toggleDataPropertyDrawer.CreateGUI(
@@ -103,140 +132,311 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                         this._exposedFieldChangedCallback(evt.isOn);
                         this._postChangeValueCallback(false, ModificationScope.Graph);
                     },
-                    new ToggleData(shaderInput.generatePropertyBlock),
+                    new ToggleData(shaderInput.isExposed),
                     "Exposed",
-                    out var propertyToggle));
-                propertyToggle.SetEnabled(shaderInput.isExposable);
+                    out var exposedToggleVisualElement));
+                exposedToggle = exposedToggleVisualElement as Toggle;
             }
+        }
+
+        void UpdateEnableState()
+        {
+            // some changes may change the exposed state
+            exposedToggle?.SetValueWithoutNotify(shaderInput.isExposed);
+            exposedToggle?.SetEnabled(shaderInput.isExposable && !shaderInput.isAlwaysExposed);
+            if (shaderInput is ShaderKeyword keyword)
+            {
+                keywordScopeField?.SetEnabled(!keyword.isBuiltIn && (keyword.keywordDefinition != KeywordDefinition.Predefined));
+                this._exposedFieldChangedCallback(keyword.generatePropertyBlock); // change exposed icon appropriately
+            }
+        }
+
+        void BuildDisplayNameField(PropertySheet propertySheet)
+        {
+            var textPropertyDrawer = new TextPropertyDrawer();
+            propertySheet.Add(textPropertyDrawer.CreateGUI(
+                null,
+                (string)shaderInput.displayName,
+                "Name"));
+
+            m_DisplayNameField = textPropertyDrawer.textField;
+            m_DisplayNameField.RegisterValueChangedCallback(
+                evt =>
+                {
+                    if (evt.newValue != shaderInput.displayName)
+                    {
+                        this._preChangeValueCallback("Change Display Name");
+                        shaderInput.SetDisplayNameAndSanitizeForGraph(graphData, evt.newValue);
+
+                        if (string.IsNullOrEmpty(shaderInput.displayName))
+                            m_DisplayNameField.RemoveFromClassList("modified");
+                        else
+                            m_DisplayNameField.AddToClassList("modified");
+
+                        this._postChangeValueCallback(true, ModificationScope.Topological);
+                    }
+                });
+
+            if (!string.IsNullOrEmpty(shaderInput.displayName))
+                m_DisplayNameField.AddToClassList("modified");
+            m_DisplayNameField.SetEnabled(shaderInput.isRenamable);
+            m_DisplayNameField.styleSheets.Add(Resources.Load<StyleSheet>("Styles/PropertyNameReferenceField"));
         }
 
         void BuildReferenceNameField(PropertySheet propertySheet)
         {
             if (!isSubGraph || shaderInput is ShaderKeyword)
             {
-                var textPropertyDrawer = new TextPropertyDrawer();
-                propertySheet.Add(textPropertyDrawer.CreateGUI(
+                m_ReferenceNameDrawer = new TextPropertyDrawer();
+                propertySheet.Add(m_ReferenceNameDrawer.CreateGUI(
                     null,
                     (string)shaderInput.referenceName,
-                    "Reference",
-                    out var propertyVisualElement));
+                    "Reference"));
 
-                m_ReferenceNameField = (TextField) propertyVisualElement;
+                m_ReferenceNameField = m_ReferenceNameDrawer.textField;
                 m_ReferenceNameField.RegisterValueChangedCallback(
                     evt =>
                     {
                         this._preChangeValueCallback("Change Reference Name");
-                        this._referenceNameChangedCallback(evt.newValue);
+
+                        if (evt.newValue != shaderInput.referenceName)
+                            shaderInput.SetReferenceNameAndSanitizeForGraph(graphData, evt.newValue);
 
                         if (string.IsNullOrEmpty(shaderInput.overrideReferenceName))
+                        {
                             m_ReferenceNameField.RemoveFromClassList("modified");
+                            m_ReferenceNameDrawer.label.RemoveFromClassList("modified");
+                        }
                         else
+                        {
                             m_ReferenceNameField.AddToClassList("modified");
+                            m_ReferenceNameDrawer.label.AddToClassList("modified");
+                        }
 
                         this._postChangeValueCallback(true, ModificationScope.Graph);
                     });
 
-                _resetReferenceNameCallback = newValue =>
+                if (!string.IsNullOrEmpty(shaderInput.overrideReferenceName))
                 {
-                    m_ReferenceNameField.value = newValue;
-                    m_ReferenceNameField.RemoveFromClassList("modified");
-                };
+                    m_ReferenceNameDrawer.textField.AddToClassList("modified");
+                    m_ReferenceNameDrawer.label.AddToClassList("modified");
+                }
+                m_ReferenceNameDrawer.textField.SetEnabled(shaderInput.isRenamable);
 
-                if(!string.IsNullOrEmpty(shaderInput.overrideReferenceName))
-                    propertyVisualElement.AddToClassList("modified");
-                propertyVisualElement.SetEnabled(shaderInput.isRenamable);
-                propertyVisualElement.styleSheets.Add(Resources.Load<StyleSheet>("Styles/PropertyNameReferenceField"));
+                // add the right click context menu to the label
+                IManipulator contextMenuManipulator = new ContextualMenuManipulator((evt) => AddShaderInputOptionsToContextMenu(shaderInput, evt));
+                m_ReferenceNameDrawer.label.AddManipulator(contextMenuManipulator);
             }
+        }
+
+        void AddShaderInputOptionsToContextMenu(ShaderInput shaderInput, ContextualMenuPopulateEvent evt)
+        {
+            if (shaderInput.isRenamable && !string.IsNullOrEmpty(shaderInput.overrideReferenceName))
+                evt.menu.AppendAction(
+                    "Reset Reference",
+                    e => { ResetReferenceName(); },
+                    DropdownMenuAction.AlwaysEnabled);
+
+            if (shaderInput.IsUsingOldDefaultRefName())
+                evt.menu.AppendAction(
+                    "Upgrade To New Reference Name",
+                    e => { UpgradeDefaultReferenceName(); },
+                    DropdownMenuAction.AlwaysEnabled);
+        }
+
+        public void ResetReferenceName()
+        {
+            this._preChangeValueCallback("Reset Reference Name");
+            var refName = shaderInput.ResetReferenceName(graphData);
+            m_ReferenceNameField.value = refName;
+            this._postChangeValueCallback(true, ModificationScope.Graph);
+        }
+
+        public void UpgradeDefaultReferenceName()
+        {
+            this._preChangeValueCallback("Upgrade Reference Name");
+            var refName = shaderInput.UpgradeDefaultReferenceName(graphData);
+            m_ReferenceNameField.value = refName;
+            this._postChangeValueCallback(true, ModificationScope.Graph);
         }
 
         void BuildPropertyFields(PropertySheet propertySheet)
         {
             var property = shaderInput as AbstractShaderProperty;
-            if(property == null)
+            if (property == null)
                 return;
 
-            switch(property)
+            if (property.sgVersion < property.latestVersion)
             {
-            case Vector1ShaderProperty vector1Property:
-                HandleVector1ShaderProperty(propertySheet, vector1Property);
-                break;
-            case Vector2ShaderProperty vector2Property:
-                HandleVector2ShaderProperty(propertySheet, vector2Property);
-                break;
-            case Vector3ShaderProperty vector3Property:
-                HandleVector3ShaderProperty(propertySheet, vector3Property);
-                break;
-            case Vector4ShaderProperty vector4Property:
-                HandleVector4ShaderProperty(propertySheet, vector4Property);
-                break;
-            case ColorShaderProperty colorProperty:
-                HandleColorProperty(propertySheet, colorProperty);
-                break;
-            case Texture2DShaderProperty texture2DProperty:
-                HandleTexture2DProperty(propertySheet, texture2DProperty);
-                break;
-            case Texture2DArrayShaderProperty texture2DArrayProperty:
-                HandleTexture2DArrayProperty(propertySheet, texture2DArrayProperty);
-                break;
-            case VirtualTextureShaderProperty virtualTextureProperty:
-                HandleVirtualTextureProperty(propertySheet, virtualTextureProperty);
-                break;
-            case Texture3DShaderProperty texture3DProperty:
-                HandleTexture3DProperty(propertySheet, texture3DProperty);
-                break;
-            case CubemapShaderProperty cubemapProperty:
-                HandleCubemapProperty(propertySheet, cubemapProperty);
-                break;
-            case BooleanShaderProperty booleanProperty:
-                HandleBooleanProperty(propertySheet, booleanProperty);
-                break;
-            case Matrix2ShaderProperty matrix2Property:
-                HandleMatrix2PropertyField(propertySheet, matrix2Property);
-                break;
-            case Matrix3ShaderProperty matrix3Property:
-                HandleMatrix3PropertyField(propertySheet, matrix3Property);
-                break;
-            case Matrix4ShaderProperty matrix4Property:
-                HandleMatrix4PropertyField(propertySheet, matrix4Property);
-                break;
-            case SamplerStateShaderProperty samplerStateProperty:
-                HandleSamplerStatePropertyField(propertySheet, samplerStateProperty);
-                break;
-            case GradientShaderProperty gradientProperty:
-                HandleGradientPropertyField(propertySheet, gradientProperty);
-                break;
+                var typeString = property.propertyType.ToString();
+                var help = HelpBoxRow.TryGetDeprecatedHelpBoxRow($"{typeString} Property", () => property.ChangeVersion(property.latestVersion));
+                if (help != null)
+                {
+                    propertySheet.Insert(0, help);
+                }
+            }
+
+            switch (property)
+            {
+                case IShaderPropertyDrawer propDrawer:
+                    propDrawer.HandlePropertyField(propertySheet, _preChangeValueCallback, _postChangeValueCallback);
+                    break;
+                case UnityEditor.ShaderGraph.Serialization.MultiJsonInternal.UnknownShaderPropertyType unknownProperty:
+                    var helpBox = new HelpBoxRow(MessageType.Warning);
+                    helpBox.Add(new Label("Cannot find the code for this Property, a package may be missing."));
+                    propertySheet.Add(helpBox);
+                    break;
+                case Vector1ShaderProperty vector1Property:
+                    HandleVector1ShaderProperty(propertySheet, vector1Property);
+                    break;
+                case Vector2ShaderProperty vector2Property:
+                    HandleVector2ShaderProperty(propertySheet, vector2Property);
+                    break;
+                case Vector3ShaderProperty vector3Property:
+                    HandleVector3ShaderProperty(propertySheet, vector3Property);
+                    break;
+                case Vector4ShaderProperty vector4Property:
+                    HandleVector4ShaderProperty(propertySheet, vector4Property);
+                    break;
+                case ColorShaderProperty colorProperty:
+                    HandleColorProperty(propertySheet, colorProperty);
+                    break;
+                case Texture2DShaderProperty texture2DProperty:
+                    HandleTexture2DProperty(propertySheet, texture2DProperty);
+                    break;
+                case Texture2DArrayShaderProperty texture2DArrayProperty:
+                    HandleTexture2DArrayProperty(propertySheet, texture2DArrayProperty);
+                    break;
+                case VirtualTextureShaderProperty virtualTextureProperty:
+                    HandleVirtualTextureProperty(propertySheet, virtualTextureProperty);
+                    break;
+                case Texture3DShaderProperty texture3DProperty:
+                    HandleTexture3DProperty(propertySheet, texture3DProperty);
+                    break;
+                case CubemapShaderProperty cubemapProperty:
+                    HandleCubemapProperty(propertySheet, cubemapProperty);
+                    break;
+                case BooleanShaderProperty booleanProperty:
+                    HandleBooleanProperty(propertySheet, booleanProperty);
+                    break;
+                case Matrix2ShaderProperty matrix2Property:
+                    HandleMatrix2PropertyField(propertySheet, matrix2Property);
+                    break;
+                case Matrix3ShaderProperty matrix3Property:
+                    HandleMatrix3PropertyField(propertySheet, matrix3Property);
+                    break;
+                case Matrix4ShaderProperty matrix4Property:
+                    HandleMatrix4PropertyField(propertySheet, matrix4Property);
+                    break;
+                case SamplerStateShaderProperty samplerStateProperty:
+                    HandleSamplerStatePropertyField(propertySheet, samplerStateProperty);
+                    break;
+                case GradientShaderProperty gradientProperty:
+                    HandleGradientPropertyField(propertySheet, gradientProperty);
+                    break;
             }
 
             BuildPrecisionField(propertySheet, property);
-            if(property.isGpuInstanceable)
-                BuildGpuInstancingField(propertySheet, property);
+
+            BuildExposedField(propertySheet);
+
+            BuildHLSLDeclarationOverrideFields(propertySheet, property);
+        }
+
+        static string[] allHLSLDeclarationStrings = new string[]
+        {
+            "Do Not Declare",       // HLSLDeclaration.DoNotDeclare
+            "Global",               // HLSLDeclaration.Global
+            "Per Material",         // HLSLDeclaration.UnityPerMaterial
+            "Hybrid Per Instance",  // HLSLDeclaration.HybridPerInstance
+        };
+
+        void BuildHLSLDeclarationOverrideFields(PropertySheet propertySheet, AbstractShaderProperty property)
+        {
+            var hlslDecls = Enum.GetValues(typeof(HLSLDeclaration));
+            var allowedDecls = new List<HLSLDeclaration>();
+
+            bool anyAllowed = false;
+            for (int i = 0; i < hlslDecls.Length; i++)
+            {
+                HLSLDeclaration decl = (HLSLDeclaration)hlslDecls.GetValue(i);
+                var allowed = property.AllowHLSLDeclaration(decl);
+                anyAllowed = anyAllowed || allowed;
+                if (allowed)
+                    allowedDecls.Add(decl);
+            }
+
+            if (anyAllowed)
+            {
+                var propRow = new PropertyRow(PropertyDrawerUtils.CreateLabel("Shader Declaration", 1));
+                var popupField = new PopupField<HLSLDeclaration>(
+                    allowedDecls,
+                    property.GetDefaultHLSLDeclaration(),
+                    (h => allHLSLDeclarationStrings[(int)h]),
+                    (h => allHLSLDeclarationStrings[(int)h]));
+
+                popupField.RegisterValueChangedCallback(
+                    evt =>
+                    {
+                        this._preChangeValueCallback("Change Override");
+                        if (property.hlslDeclarationOverride == evt.newValue)
+                            return;
+                        property.hlslDeclarationOverride = evt.newValue;
+                        this._postChangeValueCallback();
+                    });
+
+                propRow.Add(popupField);
+
+                var toggleOverride = new ToggleDataPropertyDrawer();
+                propertySheet.Add(toggleOverride.CreateGUI(
+                    newValue =>
+                    {
+                        if (property.overrideHLSLDeclaration == newValue.isOn)
+                            return;
+
+                        this._preChangeValueCallback("Override Property Declaration");
+
+                        // add or remove the sub field based on what the toggle is
+                        if (newValue.isOn)
+                        {
+                            // setup initial state based on current state
+                            property.hlslDeclarationOverride = property.GetDefaultHLSLDeclaration();
+                            property.overrideHLSLDeclaration = newValue.isOn;
+                            popupField.value = property.hlslDeclarationOverride;
+                            propertySheet.Add(propRow);
+                        }
+                        else
+                        {
+                            property.overrideHLSLDeclaration = newValue.isOn;
+                            propRow.RemoveFromHierarchy();
+                        }
+
+                        this._postChangeValueCallback(false, ModificationScope.Graph);
+                    },
+                    new ToggleData(property.overrideHLSLDeclaration),
+                    "Override Property Declaration", out var overrideToggle));
+
+                // set up initial state
+                overrideToggle.SetEnabled(anyAllowed);
+                if (property.overrideHLSLDeclaration)
+                    propertySheet.Add(propRow);
+            }
         }
 
         void BuildPrecisionField(PropertySheet propertySheet, AbstractShaderProperty property)
         {
             var enumPropertyDrawer = new EnumPropertyDrawer();
             propertySheet.Add(enumPropertyDrawer.CreateGUI(newValue =>
-                {
-                    this._preChangeValueCallback("Change Precision");
-                    if (property.precision == (Precision) newValue)
-                        return;
-                    property.precision = (Precision)newValue;
-                    this._precisionChangedCallback();
-                    this._postChangeValueCallback();
-                }, property.precision, "Precision", Precision.Inherit, out var precisionField));
-        }
-
-        void BuildGpuInstancingField(PropertySheet propertySheet, AbstractShaderProperty property)
-        {
-            var toggleDataPropertyDrawer = new ToggleDataPropertyDrawer();
-            propertySheet.Add(toggleDataPropertyDrawer.CreateGUI( newValue =>
             {
-                this._preChangeValueCallback("Change Hybrid Instanced Toggle");
-                property.gpuInstanced = newValue.isOn;
-                this._postChangeValueCallback(false, ModificationScope.Graph);
-            }, new ToggleData(property.gpuInstanced), "Hybrid Instanced (experimental)", out var gpuInstancedToggle));
-
-            gpuInstancedToggle.SetEnabled(property.isGpuInstanceable);
+                this._preChangeValueCallback("Change Precision");
+                if (property.precision == (Precision)newValue)
+                    return;
+                property.precision = (Precision)newValue;
+                this._precisionChangedCallback();
+                this._postChangeValueCallback();
+            }, (PropertyDrawerUtils.UIPrecisionForShaderGraphs)property.precision, "Precision", PropertyDrawerUtils.UIPrecisionForShaderGraphs.Inherit, out var precisionField));
+            if (property is Serialization.MultiJsonInternal.UnknownShaderPropertyType)
+                precisionField.SetEnabled(false);
         }
 
         void HandleVector1ShaderProperty(PropertySheet propertySheet, Vector1ShaderProperty vector1ShaderProperty)
@@ -286,9 +486,9 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                         "Max",
                         out var maxFloatField));
 
-                    var defaultField = (FloatField) propertyFloatField;
-                    var minField = (FloatField) minFloatField;
-                    var maxField = (FloatField) maxFloatField;
+                    var defaultField = (FloatField)propertyFloatField;
+                    var minField = (FloatField)minFloatField;
+                    var maxField = (FloatField)maxFloatField;
 
                     minField.Q("unity-text-input").RegisterCallback<FocusOutEvent>(evt =>
                     {
@@ -311,7 +511,12 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                     var integerPropertyDrawer = new IntegerPropertyDrawer();
                     // Default field
                     propertySheet.Add(integerPropertyDrawer.CreateGUI(
-                        newValue => this._changeValueCallback(newValue),
+                        newValue =>
+                        {
+                            this._preChangeValueCallback("Change property value");
+                            this._changeValueCallback((float)newValue);
+                            this._postChangeValueCallback();
+                        },
                         (int)vector1ShaderProperty.value,
                         "Default",
                         out var integerPropertyField));
@@ -345,7 +550,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                     },
                     vector1ShaderProperty.floatType,
                     "Mode",
-                     FloatType.Default,
+                    FloatType.Default,
                     out var modePropertyEnumField));
             }
         }
@@ -357,7 +562,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
             vector2PropertyDrawer.postValueChangeCallback = () => this._postChangeValueCallback();
 
             propertySheet.Add(vector2PropertyDrawer.CreateGUI(
-                newValue=> _changeValueCallback(newValue),
+                newValue => _changeValueCallback(newValue),
                 vector2ShaderProperty.value,
                 "Default",
                 out var propertyVec2Field));
@@ -404,7 +609,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 "Default",
                 out var propertyColorField));
 
-            var colorField = (ColorField) propertyColorField;
+            var colorField = (ColorField)propertyColorField;
             colorField.hdr = colorProperty.colorMode == ColorMode.HDR;
 
             if (!isSubGraph)
@@ -430,11 +635,11 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
             var texture2DPropertyDrawer = new Texture2DPropertyDrawer();
             propertySheet.Add(texture2DPropertyDrawer.CreateGUI(
                 newValue =>
-            {
-                this._preChangeValueCallback("Change property value");
-                this._changeValueCallback(newValue);
-                this._postChangeValueCallback();
-            },
+                {
+                    this._preChangeValueCallback("Change property value");
+                    this._changeValueCallback(newValue);
+                    this._postChangeValueCallback();
+                },
                 texture2DProperty.value.texture,
                 "Default",
                 out var texture2DField
@@ -445,13 +650,13 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 var enumPropertyDrawer = new EnumPropertyDrawer();
                 propertySheet.Add(enumPropertyDrawer.CreateGUI(
                     newValue =>
-                {
-                    this._preChangeValueCallback("Change Texture mode");
-                    if(texture2DProperty.defaultType == (Texture2DShaderProperty.DefaultType)newValue)
-                        return;
-                    texture2DProperty.defaultType = (Texture2DShaderProperty.DefaultType) newValue;
-                    this._postChangeValueCallback(false, ModificationScope.Graph);
-                },
+                    {
+                        this._preChangeValueCallback("Change Texture mode");
+                        if (texture2DProperty.defaultType == (Texture2DShaderProperty.DefaultType)newValue)
+                            return;
+                        texture2DProperty.defaultType = (Texture2DShaderProperty.DefaultType)newValue;
+                        this._postChangeValueCallback(false, ModificationScope.Graph);
+                    },
                     texture2DProperty.defaultType,
                     "Mode",
                     Texture2DShaderProperty.DefaultType.White,
@@ -476,19 +681,102 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 out var texture2DArrayField
             ));
         }
-#region VT reorderable list handler
+
+        #region VT reorderable list handler
         void HandleVirtualTextureProperty(PropertySheet propertySheet, VirtualTextureShaderProperty virtualTextureProperty)
         {
             var container = new IMGUIContainer(() => OnVTGUIHandler(virtualTextureProperty)) {name = "ListContainer"};
-            AddPropertyRowToSheet(propertySheet, container, "Entries");
+            AddPropertyRowToSheet(propertySheet, container, "Layers");
+
+            m_VTLayer_Name = new TextField();
+            m_VTLayer_Name.isDelayed = true;
+            m_VTLayer_Name.RegisterValueChangedCallback(
+                evt =>
+                {
+                    int index = m_VTReorderableList.index;
+                    if (index >= 0 && index < m_VTReorderableList.list.Count)
+                    {
+                        var svt = m_VTReorderableList.list[index] as SerializableVirtualTextureLayer;
+                        var otherPropertyNames = graphData.BuildPropertyDisplayNameList(virtualTextureProperty, svt.layerName);
+                        var newLayerName = GraphUtil.SanitizeName(otherPropertyNames, "{0} ({1})", evt.newValue);
+                        if (newLayerName != svt.layerName)
+                        {
+                            this._preChangeValueCallback("Change Layer Name");
+                            svt.layerName = newLayerName;
+                            this._postChangeValueCallback(false, ModificationScope.Graph);
+                            m_VTLayer_Name.SetValueWithoutNotify(newLayerName);
+                        }
+                    }
+                });
+            AddPropertyRowToSheet(propertySheet, m_VTLayer_Name, "  Layer Name");
+
+            m_VTLayer_RefName = new IdentifierField();
+            m_VTLayer_RefName.isDelayed = true;
+            m_VTLayer_RefName.RegisterValueChangedCallback(
+                evt =>
+                {
+                    int index = m_VTReorderableList.index;
+                    if (index >= 0 && index < m_VTReorderableList.list.Count)
+                    {
+                        var svt = m_VTReorderableList.list[index] as SerializableVirtualTextureLayer;
+                        var otherPropertyRefNames = graphData.BuildPropertyReferenceNameList(virtualTextureProperty, svt.layerRefName);
+                        var newName = NodeUtils.ConvertToValidHLSLIdentifier(evt.newValue);
+                        var newLayerRefName = GraphUtil.SanitizeName(otherPropertyRefNames, "{0}_{1}", newName);
+                        if (newLayerRefName != svt.layerRefName)
+                        {
+                            this._preChangeValueCallback("Change Layer Ref Name");
+                            svt.layerRefName = newLayerRefName;
+                            this._postChangeValueCallback(false, ModificationScope.Graph);
+                        }
+                        // Always update the display name to the sanitized name. If an invalid name was entered that ended up being sanitized to the old value,
+                        // the text box still needs to be updated to display the sanitized name.
+                        m_VTLayer_RefName.SetValueWithoutNotify(newLayerRefName);
+                    }
+                });
+            AddPropertyRowToSheet(propertySheet, m_VTLayer_RefName, "  Layer Reference");
+
+            m_VTLayer_Texture = new ObjectField();
+            m_VTLayer_Texture.objectType = typeof(Texture);
+            m_VTLayer_Texture.allowSceneObjects = false;
+            m_VTLayer_Texture.RegisterValueChangedCallback(
+                evt =>
+                {
+                    this._preChangeValueCallback("Change Layer Texture");
+
+                    int index = m_VTReorderableList.index;
+                    if (index >= 0 && index < m_VTReorderableList.list.Count)
+                        (m_VTReorderableList.list[index] as SerializableVirtualTextureLayer).layerTexture.texture = (evt.newValue as Texture);
+
+                    this._postChangeValueCallback(false, ModificationScope.Graph);
+                });
+            AddPropertyRowToSheet(propertySheet, m_VTLayer_Texture, "  Layer Texture");
+
+
+            m_VTLayer_TextureType = new EnumField();
+            m_VTLayer_TextureType.Init(LayerTextureType.Default);
+            m_VTLayer_TextureType.RegisterValueChangedCallback(
+                evt =>
+                {
+                    this._preChangeValueCallback("Change Layer Texture Type");
+
+                    int index = m_VTReorderableList.index;
+                    if (index >= 0 && index < m_VTReorderableList.list.Count)
+                        (m_VTReorderableList.list[index] as SerializableVirtualTextureLayer).layerTextureType = (LayerTextureType)evt.newValue;
+
+                    this._postChangeValueCallback(false, ModificationScope.Graph);
+                });
+            AddPropertyRowToSheet(propertySheet, m_VTLayer_TextureType, "  Layer Texture Type");
         }
 
         private void OnVTGUIHandler(VirtualTextureShaderProperty property)
         {
-            if(m_VTReorderableList == null)
+            if (m_VTReorderableList == null)
             {
                 VTRecreateList(property);
                 VTAddCallbacks(property);
+
+                // update selected entry to reflect default selection
+                VTSelectEntry(m_VTReorderableList);
             }
 
             m_VTReorderableList.index = m_VTSelectedIndex;
@@ -507,12 +795,8 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
             m_VTReorderableList.drawHeaderCallback = (Rect rect) =>
             {
                 int indent = 14;
-                var displayRect = new Rect(rect.x + indent, rect.y, (rect.width - indent) / 3, rect.height);
-                EditorGUI.LabelField(displayRect, "Display Name");
-                var referenceRect = new Rect((rect.x) + (rect.width - indent) / 3, rect.y, (rect.width - indent) / 3, rect.height);
-                EditorGUI.LabelField(referenceRect, "Reference Name");
-                var textureRect = new Rect((rect.x) + (rect.width - indent) / 3 * 2, rect.y, (rect.width - indent) / 3, rect.height);
-                EditorGUI.LabelField(textureRect, "Texture Asset");
+                var displayRect = new Rect(rect.x + indent, rect.y, rect.width, rect.height);
+                EditorGUI.LabelField(displayRect, "Layer Name");
             };
 
             // Draw Element
@@ -521,45 +805,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 SerializableVirtualTextureLayer entry = ((SerializableVirtualTextureLayer)m_VTReorderableList.list[index]);
                 EditorGUI.BeginChangeCheck();
 
-                var layerName = EditorGUI.DelayedTextField( new Rect(rect.x, rect.y, rect.width / 3, EditorGUIUtility.singleLineHeight), entry.layerName, EditorStyles.label);
-                var layerRefName = EditorGUI.DelayedTextField( new Rect((rect.x + rect.width) / 3, rect.y, rect.width / 3, EditorGUIUtility.singleLineHeight), entry.layerRefName, EditorStyles.label);
-                var selectedObject = EditorGUI.ObjectField( new Rect((rect.x + rect.width) / 3 * 2, rect.y, rect.width / 3, EditorGUIUtility.singleLineHeight), entry.layerTexture.texture, typeof(Texture), false);
-
-                SerializableTexture layerTexture = new SerializableTexture();
-                layerTexture.texture = (Texture)selectedObject;
-
-                if (EditorGUI.EndChangeCheck())
-                {
-                    //need to sanitize each layer with all existing properties
-                    string oldLayerName = property.value.layers[index].layerName;
-                    if (layerName != oldLayerName)
-                    {
-                        var otherPropertyNames = graphData.BuildPropertyDisplayNameList(property, oldLayerName);
-                        layerName = GraphUtil.SanitizeName(otherPropertyNames, "{0} ({1})", layerName);
-                    }
-
-                    string oldLayerRefName = property.value.layers[index].layerRefName;
-                    if (layerRefName != oldLayerRefName)
-                    {
-                        if (!string.IsNullOrEmpty(layerRefName))
-                        {
-                            string name = layerRefName.Trim();
-                            if (!string.IsNullOrEmpty(layerRefName))
-                            {
-                                if (Regex.IsMatch(name, @"^\d+"))
-                                    name = "_" + name;
-                                name = Regex.Replace(name, @"(?:[^A-Za-z_0-9])|(?:\s)", "_");
-                                var otherPropertyRefNames = graphData.BuildPropertyReferenceNameList(property, oldLayerRefName);
-                                layerRefName = GraphUtil.SanitizeName(otherPropertyRefNames, "{0}_{1}", name);
-                            }
-                        }
-                    }
-
-                    property.value.layers[index] = new SerializableVirtualTextureLayer(layerName, layerRefName, layerTexture);
-
-                    //DirtyNodes();
-                    this._postChangeValueCallback(true);
-                }
+                EditorGUI.LabelField(rect, entry.layerName);
             };
 
             // Element height
@@ -592,6 +838,28 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
         private void VTSelectEntry(ReorderableList list)
         {
             m_VTSelectedIndex = list.index;
+            if (m_VTSelectedIndex >= 0 && m_VTSelectedIndex < list.count)
+            {
+                m_VTLayer_Name.SetEnabled(true);
+                m_VTLayer_RefName.SetEnabled(true);
+                m_VTLayer_Texture.SetEnabled(true);
+                m_VTLayer_TextureType.SetEnabled(true);
+                m_VTLayer_Name.SetValueWithoutNotify((list.list[m_VTSelectedIndex] as SerializableVirtualTextureLayer).layerName);
+                m_VTLayer_RefName.SetValueWithoutNotify((list.list[m_VTSelectedIndex] as SerializableVirtualTextureLayer).layerRefName);
+                m_VTLayer_Texture.SetValueWithoutNotify((list.list[m_VTSelectedIndex] as SerializableVirtualTextureLayer).layerTexture.texture);
+                m_VTLayer_TextureType.SetValueWithoutNotify((list.list[m_VTSelectedIndex] as SerializableVirtualTextureLayer).layerTextureType);
+            }
+            else
+            {
+                m_VTLayer_Name.SetEnabled(false);
+                m_VTLayer_RefName.SetEnabled(false);
+                m_VTLayer_Texture.SetEnabled(false);
+                m_VTLayer_TextureType.SetEnabled(false);
+                m_VTLayer_Name.SetValueWithoutNotify("");
+                m_VTLayer_RefName.SetValueWithoutNotify("");
+                m_VTLayer_Texture.SetValueWithoutNotify(null);
+                m_VTLayer_TextureType.SetValueWithoutNotify(LayerTextureType.Default);
+            }
         }
 
         private void VTAddEntry(ReorderableList list, VirtualTextureShaderProperty property)
@@ -604,12 +872,14 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 
             var layerName = "Layer" + index.ToString();
             // Add new entry
-            property.value.layers.Add(new SerializableVirtualTextureLayer(layerName, layerName, new SerializableTexture()));
+            property.value.layers.Add(new SerializableVirtualTextureLayer(layerName, new SerializableTexture()));
 
             // Update Blackboard & Nodes
             //DirtyNodes();
             this._postChangeValueCallback(true);
             m_VTSelectedIndex = list.list.Count - 1;
+            //Hack to handle downstream SampleVirtualTextureNodes
+            graphData.ValidateGraph();
         }
 
         // Allowed indicies are 1-MAX_ENUM_ENTRIES
@@ -645,13 +915,16 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
             //DirtyNodes();
             this._postChangeValueCallback(true);
             m_VTSelectedIndex = m_VTSelectedIndex >= list.list.Count - 1 ? list.list.Count - 1 : m_VTSelectedIndex;
+            //Hack to handle downstream SampleVirtualTextureNodes
+            graphData.ValidateGraph();
         }
 
         private void VTReorderEntries(ReorderableList list)
         {
             this._postChangeValueCallback(true);
         }
-#endregion
+
+        #endregion
         void HandleTexture3DProperty(PropertySheet propertySheet, Texture3DShaderProperty texture3DShaderProperty)
         {
             var texture3DPropertyDrawer = new Texture3DPropertyDrawer();
@@ -681,7 +954,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 cubemapProperty.value.cubemap,
                 "Default",
                 out var propertyCubemapField
-                ));
+            ));
         }
 
         void HandleBooleanProperty(PropertySheet propertySheet, BooleanShaderProperty booleanProperty)
@@ -759,7 +1032,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 {
                     this._preChangeValueCallback("Change property value");
                     TextureSamplerState state = samplerStateShaderProperty.value;
-                    state.filter = (TextureSamplerState.FilterMode) newValue;
+                    state.filter = (TextureSamplerState.FilterMode)newValue;
                     samplerStateShaderProperty.value = state;
                     this._postChangeValueCallback(false, ModificationScope.Graph);
                     this.inspectorUpdateDelegate();
@@ -774,7 +1047,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 {
                     this._preChangeValueCallback("Change property value");
                     TextureSamplerState state = samplerStateShaderProperty.value;
-                    state.wrap = (TextureSamplerState.WrapMode) newValue;
+                    state.wrap = (TextureSamplerState.WrapMode)newValue;
                     samplerStateShaderProperty.value = state;
                     this._postChangeValueCallback(false, ModificationScope.Graph);
                     this.inspectorUpdateDelegate();
@@ -803,7 +1076,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
         void BuildKeywordFields(PropertySheet propertySheet, ShaderInput shaderInput)
         {
             var keyword = shaderInput as ShaderKeyword;
-            if(keyword == null)
+            if (keyword == null)
                 return;
 
             var enumPropertyDrawer = new EnumPropertyDrawer();
@@ -811,9 +1084,10 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 newValue =>
                 {
                     this._preChangeValueCallback("Change Keyword type");
-                    if (keyword.keywordDefinition == (KeywordDefinition) newValue)
+                    if (keyword.keywordDefinition == (KeywordDefinition)newValue)
                         return;
-                    keyword.keywordDefinition = (KeywordDefinition) newValue;
+                    keyword.keywordDefinition = (KeywordDefinition)newValue;
+                    UpdateEnableState();
                 },
                 keyword.keywordDefinition,
                 "Definition",
@@ -822,22 +1096,19 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 
             typeField.SetEnabled(!keyword.isBuiltIn);
 
-            if (keyword.keywordDefinition != KeywordDefinition.Predefined)
             {
                 propertySheet.Add(enumPropertyDrawer.CreateGUI(
                     newValue =>
                     {
                         this._preChangeValueCallback("Change Keyword scope");
-                        if (keyword.keywordScope == (KeywordScope) newValue)
+                        if (keyword.keywordScope == (KeywordScope)newValue)
                             return;
-                        keyword.keywordScope = (KeywordScope) newValue;
+                        keyword.keywordScope = (KeywordScope)newValue;
                     },
                     keyword.keywordScope,
                     "Scope",
                     KeywordScope.Local,
-                    out var scopeField));
-
-                scopeField.SetEnabled(!keyword.isBuiltIn);
+                    out keywordScopeField));
             }
 
             switch (keyword.keywordType)
@@ -849,6 +1120,8 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                     BuildEnumKeywordField(propertySheet, keyword);
                     break;
             }
+
+            BuildExposedField(propertySheet);
         }
 
         void BuildBooleanKeywordField(PropertySheet propertySheet, ShaderKeyword keyword)
@@ -882,7 +1155,6 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 
             AddPropertyRowToSheet(propertySheet, field, "Default");
 
-            // Entries
             var container = new IMGUIContainer(() => OnKeywordGUIHandler()) {name = "ListContainer"};
             AddPropertyRowToSheet(propertySheet, container, "Entries");
             container.SetEnabled(!keyword.isBuiltIn);
@@ -899,7 +1171,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 
         void OnKeywordGUIHandler()
         {
-            if(m_KeywordReorderableList == null)
+            if (m_KeywordReorderableList == null)
             {
                 KeywordRecreateList();
                 KeywordAddCallbacks();
@@ -911,7 +1183,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 
         internal void KeywordRecreateList()
         {
-            if(!(shaderInput is ShaderKeyword keyword))
+            if (!(shaderInput is ShaderKeyword keyword))
                 return;
 
             // Create reorderable list from entries
@@ -920,7 +1192,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 
         void KeywordAddCallbacks()
         {
-            if(!(shaderInput is ShaderKeyword keyword))
+            if (!(shaderInput is ShaderKeyword keyword))
                 return;
 
             // Draw Header
@@ -928,9 +1200,9 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
             {
                 int indent = 14;
                 var displayRect = new Rect(rect.x + indent, rect.y, (rect.width - indent) / 2, rect.height);
-                EditorGUI.LabelField(displayRect, "Display Name");
+                EditorGUI.LabelField(displayRect, "Entry Name");
                 var referenceRect = new Rect((rect.x + indent) + (rect.width - indent) / 2, rect.y, (rect.width - indent) / 2, rect.height);
-                EditorGUI.LabelField(referenceRect, "Reference Suffix");
+                EditorGUI.LabelField(referenceRect, "Reference Suffix", keyword.isBuiltIn ? EditorStyles.label : greyLabel);
             };
 
             // Draw Element
@@ -939,17 +1211,30 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
                 KeywordEntry entry = ((KeywordEntry)m_KeywordReorderableList.list[index]);
                 EditorGUI.BeginChangeCheck();
 
-                var displayName = EditorGUI.DelayedTextField( new Rect(rect.x, rect.y, rect.width / 2, EditorGUIUtility.singleLineHeight), entry.displayName, EditorStyles.label);
-                var referenceName = EditorGUI.DelayedTextField( new Rect(rect.x + rect.width / 2, rect.y, rect.width / 2, EditorGUIUtility.singleLineHeight), entry.referenceName, EditorStyles.label);
+                Rect displayRect = new Rect(rect.x, rect.y, rect.width / 2, EditorGUIUtility.singleLineHeight);
+                var displayName = EditorGUI.DelayedTextField(displayRect, entry.displayName, EditorStyles.label);
+                //This is gross but I cant find any other way to make a DelayedTextField have a tooltip (tried doing the empty label on the field itself and it didnt work either)
+                EditorGUI.LabelField(displayRect, new GUIContent("", "Enum keyword display names can only use alphanumeric characters, whitespace and `_`"));
+                var referenceName = EditorGUI.TextField(new Rect(rect.x + rect.width / 2, rect.y, rect.width / 2, EditorGUIUtility.singleLineHeight), entry.referenceName,
+                    keyword.isBuiltIn ? EditorStyles.label : greyLabel);
 
-                displayName = GetDuplicateSafeDisplayName(entry.id, displayName);
-                referenceName = GetDuplicateSafeReferenceName(entry.id, referenceName.ToUpper());
-
-                if(EditorGUI.EndChangeCheck())
+                if (EditorGUI.EndChangeCheck())
                 {
-                    keyword.entries[index] = new KeywordEntry(index + 1, displayName, referenceName);
+                    displayName = GetSanitizedDisplayName(displayName);
+                    referenceName = GetSanitizedReferenceName(displayName.ToUpper());
+                    var duplicateIndex = FindDuplicateReferenceNameIndex(entry.id, referenceName);
+                    if (duplicateIndex != -1)
+                    {
+                        var duplicateEntry = ((KeywordEntry)m_KeywordReorderableList.list[duplicateIndex]);
+                        Debug.LogWarning($"Display name '{displayName}' will create the same reference name '{referenceName}' as entry {duplicateIndex + 1} with display name '{duplicateEntry.displayName}'.");
+                    }
+                    else if (string.IsNullOrWhiteSpace(displayName))
+                        Debug.LogWarning("Invalid display name. Display names cannot be empty or all whitespace.");
+                    else if (int.TryParse(displayName, out int intVal) || float.TryParse(displayName, out float floatVal))
+                        Debug.LogWarning("Invalid display name. Display names cannot be valid integer or floating point numbers.");
+                    else
+                        keyword.entries[index] = new KeywordEntry(index + 1, displayName, referenceName);
 
-                    // Rebuild();
                     this._postChangeValueCallback(true);
                 }
             };
@@ -987,7 +1272,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
         // Allowed indicies are 1-MAX_ENUM_ENTRIES
         int GetFirstUnusedID()
         {
-            if(!(shaderInput is ShaderKeyword keyword))
+            if (!(shaderInput is ShaderKeyword keyword))
                 return 0;
 
             List<int> unusedIDs = new List<int>();
@@ -1009,7 +1294,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 
         void KeywordAddEntry(ReorderableList list)
         {
-            if(!(shaderInput is ShaderKeyword keyword))
+            if (!(shaderInput is ShaderKeyword keyword))
                 return;
 
             this._preChangeValueCallback("Add Keyword Entry");
@@ -1018,8 +1303,9 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
             if (index <= 0)
                 return; // Error has already occured, don't attempt to add this entry.
 
-            var displayName = GetDuplicateSafeDisplayName(index, "New");
-            var referenceName = GetDuplicateSafeReferenceName(index, "NEW");
+            var displayName = "New";
+            var referenceName = "NEW";
+            GetDuplicateSafeEnumNames(index, "New", out displayName, out referenceName);
 
             // Add new entry
             keyword.entries.Add(new KeywordEntry(index, displayName, referenceName));
@@ -1032,7 +1318,7 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
 
         void KeywordRemoveEntry(ReorderableList list)
         {
-            if(!(shaderInput is ShaderKeyword keyword))
+            if (!(shaderInput is ShaderKeyword keyword))
                 return;
 
             this._preChangeValueCallback("Remove Keyword Entry");
@@ -1061,15 +1347,56 @@ namespace UnityEditor.ShaderGraph.Drawing.Inspector.PropertyDrawers
         {
             name = name.Trim();
             var entryList = m_KeywordReorderableList.list as List<KeywordEntry>;
-            return GraphUtil.SanitizeName(entryList.Where(p => p.id != id).Select(p => p.displayName), "{0} ({1})", name);
+            return GraphUtil.SanitizeName(entryList.Where(p => p.id != id).Select(p => p.displayName), "{0} ({1})", name, m_DisplayNameDisallowedPattern);
+        }
+
+        public string GetDuplicateSafeEnumDisplayName(int id, string name)
+        {
+            name = name.Trim();
+            var entryList = m_KeywordReorderableList.list as List<KeywordEntry>;
+            return GraphUtil.SanitizeName(entryList.Where(p => p.id != id).Select(p => p.displayName), "{0} {1}", name, m_DisplayNameDisallowedPattern);
+        }
+
+        void GetDuplicateSafeEnumNames(int id, string name, out string displayName, out string referenceName)
+        {
+            name = name.Trim();
+            // Get de-duplicated display and reference names
+            displayName = GetDuplicateSafeEnumDisplayName(id, name);
+            referenceName = GetDuplicateSafeReferenceName(id, displayName.ToUpper());
+            // Check when the simple reference name should be for the display name.
+            // If these don't match then there will be a desync which causes the enum entry to not work.
+            // An example where this happens is ["new 1", "NEW_1"] already exists.
+            // The display name "New_1" is added.
+            // This new display name doesn't exist, but it finds the reference name of "NEW_1" already exists so we get the pair ["New_1", "NEW_2"] which is invalid.
+            // The easiest fix in this case is to just use the safe reference name as the new display name which is guaranteed to be unique.
+            var simpleReferenceName = Regex.Replace(displayName.ToUpper(), m_ReferenceNameDisallowedPattern, "_");
+            if (referenceName != simpleReferenceName)
+                displayName = referenceName;
+        }
+
+        string GetSanitizedDisplayName(string name)
+        {
+            name = name.Trim();
+            return Regex.Replace(name, m_DisplayNameDisallowedPattern, "_");
         }
 
         public string GetDuplicateSafeReferenceName(int id, string name)
         {
             name = name.Trim();
-            name = Regex.Replace(name, @"(?:[^A-Za-z_0-9])|(?:\s)", "_");
             var entryList = m_KeywordReorderableList.list as List<KeywordEntry>;
-            return GraphUtil.SanitizeName(entryList.Where(p => p.id != id).Select(p => p.referenceName), "{0}_{1}", name);
+            return GraphUtil.SanitizeName(entryList.Where(p => p.id != id).Select(p => p.referenceName), "{0}_{1}", name, m_ReferenceNameDisallowedPattern);
+        }
+
+        string GetSanitizedReferenceName(string name)
+        {
+            name = name.Trim();
+            return Regex.Replace(name, m_ReferenceNameDisallowedPattern, "_");
+        }
+
+        int FindDuplicateReferenceNameIndex(int id, string referenceName)
+        {
+            var entryList = m_KeywordReorderableList.list as List<KeywordEntry>;
+            return entryList.FindIndex(entry => entry.id != id && entry.referenceName == referenceName);
         }
     }
 }
